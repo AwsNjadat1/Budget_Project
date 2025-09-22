@@ -149,29 +149,66 @@ const UI = {
     },
 
     // MODIFIED: This function now gets defaults from the productMap
-    updateProductDefaults() {
-        const productSelect = document.getElementById('product');
-        const categoryDisplay = document.getElementById('categoryDisplay');
-        const selectedProduct = productSelect.value;
-        const productData = AppState.masters.productMap[selectedProduct];
+    updateDependentDropdowns() {
+    const buSelect = document.getElementById('businessUnit');
+    const clientSelect = document.getElementById('client');
+    const productSelect = document.getElementById('product');
+    const newClientInput = document.getElementById('newClient');
 
-        if (productData) {
-            categoryDisplay.value = productData.Category || 'Unknown';
-            const defaultPMT = productData.Default_PMT ?? '';
-            const defaultGM = productData['Default_GM%'] ?? '';
+    const selectedBU = buSelect.value;
 
-            ['pmtQ1', 'pmtQ2', 'pmtQ3', 'pmtQ4'].forEach(id => {
-                const field = document.getElementById(id);
-                if (field && !field.value) field.value = defaultPMT;
-            });
-            const gmField = document.getElementById('gmPercent');
-            if (gmField && !gmField.value) gmField.value = defaultGM;
+    // Clear and disable dropdowns if no BU is selected
+    if (!selectedBU) {
+        clientSelect.innerHTML = '<option value="">-- Select a Business Unit First --</option>';
+        productSelect.innerHTML = '<option value="">-- Select a Business Unit First --</option>';
+        clientSelect.disabled = true;
+        productSelect.disabled = true;
+        newClientInput.disabled = true;
+        // Clear any previously selected product info
+        this.updateProductDefaults(); 
+        return;
+    }
 
-        } else {
-            categoryDisplay.value = '';
-        }
-        this.updatePreview();
-    },
+    // Enable dropdowns
+    clientSelect.disabled = false;
+    productSelect.disabled = false;
+    newClientInput.disabled = false;
+
+    // ** START OF FIX **
+    // Filter clients based on selected Business Unit
+    const filteredClients = AppState.masters.clients.filter(client => {
+        // client is an object like { Client: 'ACME Corp', 'Business Unit': 'Engineering' }
+        return client['Business Unit'] === selectedBU || client['Business Unit'] === 'All';
+    });
+    
+    // Get a unique list of client names from the filtered results
+    const uniqueClientNames = [...new Set(filteredClients.map(c => c.Client))];
+
+    clientSelect.innerHTML = '<option value="">Select Client</option>';
+    uniqueClientNames.sort().forEach(clientName => {
+        const option = document.createElement('option');
+        option.value = clientName;
+        option.textContent = clientName;
+        clientSelect.appendChild(option);
+    });
+    // ** END OF FIX **
+
+
+    // Filter products based on selected Business Unit
+    const filteredProducts = AppState.masters.products.filter(
+        p => p['Business Unit'] === selectedBU || p['Business Unit'] === 'All'
+    );
+    productSelect.innerHTML = '<option value="">Select Product</option>';
+    filteredProducts.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.Product;
+        option.textContent = product.Product;
+        productSelect.appendChild(option);
+    });
+
+    // Trigger an update to clear old values
+    this.updateProductDefaults();
+},
     
     updatePreview() { /* ... unchanged ... */ },
     updateStats() { /* ... unchanged ... */ },
