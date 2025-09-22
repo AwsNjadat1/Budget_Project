@@ -7,24 +7,27 @@ from flask import request
 
 from .data_utils import IDCOL, INTERNAL_DF_COLS
 
+# --- MODIFIED: Point to a single Excel file ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CLIENTS_CSV_PATH = os.path.join(BASE_DIR, 'master_data', 'clients.csv')
-PRODUCTS_CSV_PATH = os.path.join(BASE_DIR, 'master_data', 'products.csv')
+MASTER_DATA_PATH = os.path.join(BASE_DIR, 'master_data', 'master_data.xlsx')
 
 SESSIONS: Dict[str, Dict[str, Any]] = {}
 
+# --- MODIFIED: This function now reads from an Excel file with multiple sheets ---
 def load_default_masters() -> Dict[str, Any]:
-    """Loads the master clients and products from the CSV files."""
+    """Loads the master clients and products from the Excel file."""
     try:
-        clients_df = pd.read_csv(CLIENTS_CSV_PATH)
-    except FileNotFoundError:
-        print(f"WARNING: clients.csv not found at {CLIENTS_CSV_PATH}. Using empty DataFrame.")
+        # Read the 'Clients' sheet from the Excel file
+        clients_df = pd.read_excel(MASTER_DATA_PATH, sheet_name='Clients', engine='openpyxl')
+    except (FileNotFoundError, ValueError): # ValueError handles if sheet doesn't exist
+        print(f"WARNING: 'Clients' sheet not found in {MASTER_DATA_PATH}. Using empty DataFrame.")
         clients_df = pd.DataFrame(columns=['Client', 'Business Unit'])
 
     try:
-        products_df = pd.read_csv(PRODUCTS_CSV_PATH)
-    except FileNotFoundError:
-        print(f"WARNING: products.csv not found at {PRODUCTS_CSV_PATH}. Using empty DataFrame.")
+        # Read the 'Products' sheet from the same Excel file
+        products_df = pd.read_excel(MASTER_DATA_PATH, sheet_name='Products', engine='openpyxl')
+    except (FileNotFoundError, ValueError):
+        print(f"WARNING: 'Products' sheet not found in {MASTER_DATA_PATH}. Using empty DataFrame.")
         products_df = pd.DataFrame(columns=['Product', 'Category', 'Default_PMT', 'Default_GM%', 'Business Unit'])
         
     return {"clients": clients_df, "products": products_df}
