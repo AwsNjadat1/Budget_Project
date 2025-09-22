@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        },
+                        success: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                        },
+                        warning: {
+                            50: '#fffbeb',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        },
+                        danger: {
+                            50: '#fef2f2',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'bounce-in': 'bounceIn 0.6s ease-out',
+                    }
+                }
+            }
+        }
+    </script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-white bg-opacity-20 p-2 rounded-lg">
+                        <i data-lucide="calculator" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold">Budget Manager</h1>
+                        <p class="text-sm opacity-90">Advanced Budget Planning & Analysis</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="glass-effect px-4 py-2 rounded-lg">
+                        <span class="text-sm font-medium" id="currentDate"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="metric-card p-6 rounded-xl shadow-sm animate-fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Entries</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalEntries">0</p>
+                    </div>
+                    <div class="bg-gray-100 p-3 rounded-lg">
+                        <i data-lucide="file-text" class="w-6 h-6 text-black-600"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="metric-card p-6 rounded-xl shadow-sm animate-fade-in" style="animation-delay: 0.1s">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Sales</p>
+                        <p class="text-2xl font-bold text-green-600" id="totalSales">0.00 JOD</p>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-lg">
+                        <i data-lucide="trending-up" class="w-6 h-6 text-success-600"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="metric-card p-6 rounded-xl shadow-sm animate-fade-in" style="animation-delay: 0.2s">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total GP</p>
+                        <p class="text-2xl font-bold text-blue-600" id="totalGP">0.00 JOD</p>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-lg">
+                        <i data-lucide="banknote" class="w-6 h-6 text-primary-600"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="metric-card p-6 rounded-xl shadow-sm animate-fade-in" style="animation-delay: 0.3s">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Avg GM %</p>
+                        <p class="text-2xl font-bold text-purple-600" id="avgGM">0.0%</p>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-lg">
+                        <i data-lucide="percent" class="w-6 h-6 text-purple-600"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Tabs -->
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+            <!-- Tab Navigation -->
+            <div class="border-b border-gray-200">
+                <nav class="flex space-x-8 px-6">
+                    <button id="tabEntry" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 border-primary-500 text-primary-600">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                            <span>New Entry</span>
+                        </div>
+                    </button>
+                    <button id="tabManage" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 border-transparent text-gray-500 hover:text-gray-700">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            <span>Manage Data</span>
+                        </div>
+                    </button>
+                    <button id="tabSettings" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 border-transparent text-gray-500 hover:text-gray-700">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="settings" class="w-4 h-4"></i>
+                            <span>Settings & Import</span>
+                        </div>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="p-6">
+                <!-- New Entry Tab -->
+                <div id="panelEntry" class="tab-panel">
+                    <div class="max-w-6xl mx-auto">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-6">Add New Budget Entry</h3>
+                        
+                        <!-- Basic Information -->
+                        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-6">
+                            <h4 class="font-medium text-gray-700 mb-4 flex items-center">
+                                <i data-lucide="info" class="w-4 h-4 mr-2"></i>
+                                Basic Information
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Business Unit</label>
+                                    <select id="businessUnit" class="input-focus w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                        <option>Oils</option>
+                                        <option>Chemicals</option>
+                                        <option>Paper & Board</option>
+                                        <option>Food</option>
+                                        <option>Engineering</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Section</label>
+                                    <select id="section" class="input-focus w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                        <option>Trade</option>
+                                        <option>Broker</option>
+                                        <option>Direct Sales</option>
+                                        <option>Export</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                                    <select id="client" class="input-focus w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                    </select>
+                                    <input id="newClient" placeholder="Or add new client..." class="input-focus w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent mt-2 text-sm">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Product</label>
+                                    <select id="product" class="input-focus w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Category (Auto-filled)</label>
+                                    <input id="categoryDisplay" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600" readonly>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Sector</label>
+                                    <select id="sector" class="input-focus w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                        <option>A</option>
+                                        <option>B</option>
+                                        <option>C</option>
+                                        <option>Industrial</option>
+                                        <option>Commercial</option>
+                                        <option>Export</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Quarterly PMT -->
+                        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-6">
+                            <h4 class="font-medium text-gray-700 mb-4 flex items-center">
+                                <i data-lucide="trending-up" class="w-4 h-4 mr-2"></i>
+                                Quarterly PMT (JOD)
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Q1 (Jan-Mar)</label>
+                                    <input id="pmtQ1" type="number" step="0.01" class="input-focus w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Q2 (Apr-Jun)</label>
+                                    <input id="pmtQ2" type="number" step="0.01" class="input-focus w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Q3 (Jul-Sep)</label>
+                                    <input id="pmtQ3" type="number" step="0.01" class="input-focus w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Q4 (Oct-Dec)</label>
+                                    <input id="pmtQ4" type="number" step="0.01" class="input-focus w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Annual GM% -->
+                        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-6">
+                            <h4 class="font-medium text-gray-700 mb-4 flex items-center">
+                                <i data-lucide="percent" class="w-4 h-4 mr-2"></i>
+                                Annual Gross Margin
+                            </h4>
+                            <div class="max-w-xs">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">GM % (Annual)</label>
+                                <input id="gmPercent" type="number" step="0.1" class="input-focus w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right">
+                            </div>
+                        </div>
+                        
+                        <!-- Monthly Quantities -->
+                        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-6">
+                            <h4 class="font-medium text-gray-700 mb-4 flex items-center">
+                                <i data-lucide="calendar" class="w-4 h-4 mr-2"></i>
+                                Monthly Quantities (MT)
+                            </h4>
+                            
+                            <!-- First Row: Jan-Jun -->
+                            <div class="grid grid-cols-6 gap-3 mb-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Jan</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtyJan" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkJan" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Feb</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtyFeb" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkFeb" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Mar</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtyMar" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkMar" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Apr</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtyApr" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkApr" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">May</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtyMay" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkMay" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Jun</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtyJun" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkJun" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Second Row: Jul-Dec -->
+                            <div class="grid grid-cols-6 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Jul</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtyJul" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkJul" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Aug</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtyAug" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkAug" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Sep</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtySep" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkSep" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Oct</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtyOct" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkOct" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Nov</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtyNov" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkNov" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Dec</label>
+                                    <div class="flex flex-col space-y-1">
+                                        <input id="qtyDec" type="number" step="0.01" class="input-focus w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-right text-sm">
+                                        <div class="flex justify-center">
+                                            <input id="checkDec" type="checkbox" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Live Preview -->
+                        <div class="bg-gradient-to-r from-[#f0f9ff] to-[#e0e7ff] rounded-xl p-6 mb-6">
+                            <h4 class="font-medium text-gray-700 mb-4 flex items-center">
+                                <i data-lucide="eye" class="w-4 h-4 mr-2"></i>
+                                Live Preview
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                <div class="bg-white p-4 rounded-lg shadow-sm"><div class="text-sm text-gray-500">Q1 Sales</div><div class="text-lg font-bold text-green-600" id="previewQ1Sales">0.00 JOD</div></div>
+                                <div class="bg-white p-4 rounded-lg shadow-sm"><div class="text-sm text-gray-500">Q2 Sales</div><div class="text-lg font-bold text-green-600" id="previewQ2Sales">0.00 JOD</div></div>
+                                <div class="bg-white p-4 rounded-lg shadow-sm"><div class="text-sm text-gray-500">Q3 Sales</div><div class="text-lg font-bold text-green-600" id="previewQ3Sales">0.00 JOD</div></div>
+                                <div class="bg-white p-4 rounded-lg shadow-sm"><div class="text-sm text-gray-500">Q4 Sales</div><div class="text-lg font-bold text-green-600" id="previewQ4Sales">0.00 JOD</div></div>
+                                <div class="bg-white p-4 rounded-lg shadow-sm"><div class="text-sm text-gray-500">Total Sales</div><div class="text-lg font-bold text-blue-600" id="previewTotalSales">0.00 JOD</div></div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
+                                <div class="bg-white p-4 rounded-lg shadow-sm"><div class="text-sm text-gray-500">Q1 GP</div><div class="text-lg font-bold text-purple-600" id="previewQ1GP">0.00 JOD</div></div>
+                                <div class="bg-white p-4 rounded-lg shadow-sm"><div class="text-sm text-gray-500">Q2 GP</div><div class="text-lg font-bold text-purple-600" id="previewQ2GP">0.00 JOD</div></div>
+                                <div class="bg-white p-4 rounded-lg shadow-sm"><div class="text-sm text-gray-500">Q3 GP</div><div class="text-lg font-bold text-purple-600" id="previewQ3GP">0.00 JOD</div></div>
+                                <div class="bg-white p-4 rounded-lg shadow-sm"><div class="text-sm text-gray-500">Q4 GP</div><div class="text-lg font-bold text-purple-600" id="previewQ4GP">0.00 JOD</div></div>
+                                <div class="bg-white p-4 rounded-lg shadow-sm"><div class="text-sm text-gray-500">Total GP</div><div class="text-lg font-bold text-indigo-600" id="previewTotalGP">0.00 JOD</div></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="flex space-x-4">
+                            <button id="btnAddEntry" class="btn-primary px-6 py-3 text-white rounded-lg font-medium flex items-center space-x-2">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                <span>Add Entry</span>
+                            </button>
+                            <button id="btnResetForm" class="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors duration-200 flex items-center space-x-2">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                <span>Reset Form</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manage Data Tab -->
+                <div id="panelManage" class="tab-panel hidden">
+                    <div class="space-y-6">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900">Manage Budget Data</h3>
+                            <div class="flex space-x-3">
+                                <button id="btnRecalculate" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 flex items-center space-x-2">
+                                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                    <span>Recalculate</span>
+                                </button>
+                                <button id="btnDeleteSelected" class="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors duration-200 flex items-center space-x-2">
+                                    <i data-lucide="trash" class="w-4 h-4"></i>
+                                    <span>Delete Selected</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Filters -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-medium text-gray-700 mb-3 flex items-center">
+                                <i data-lucide="filter" class="w-4 h-4 mr-2"></i>
+                                Filters
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                <select id="filterBU" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                    <option value="">(All Business Units)</option>
+                                </select>
+                                <select id="filterSection" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                    <option value="">(All Sections)</option>
+                                </select>
+                                <select id="filterClient" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                    <option value="">(All Clients)</option>
+                                </select>
+                                <select id="filterProduct" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                    <option value="">(All Products)</option>
+                                </select>
+                                <input id="filterSearch" placeholder="Search client/product..." class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <!-- Data Table -->
+                        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                            <div class="overflow-y-auto overflow-x-hidden max-h-96">
+                                <table class="min-w-full text-sm" id="tbl">
+                                    <thead class="bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                <input type="checkbox" id="selectAll" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                                            </th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Business Unit</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty (MT)</th>
+                                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">PMT</th>
+                                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">GM %</th>
+                                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sales</th>
+                                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">GP</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booked</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Summary -->
+                        <div class="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="text-center">
+                                    <div class="text-sm text-gray-600">Filtered Entries</div>
+                                    <div class="text-xl font-bold text-gray-900" id="filteredCount">0</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-sm text-gray-600">Filtered Sales</div>
+                                    <div class="text-xl font-bold text-green-600" id="filteredSales">0.00 JOD</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-sm text-gray-600">Filtered GP</div>
+                                    <div class="text-xl font-bold text-blue-600" id="filteredGP">0.00 JOD</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div id="panelSettings" class="tab-panel hidden">
+                    <div class="max-w-4xl mx-auto space-y-8">
+                        <h3 class="text-lg font-semibold text-gray-900">Settings & Data Management</h3>
+                        
+                        <!-- File Operations -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <!-- Import/Export -->
+                            <div class="bg-white p-6 rounded-lg border border-gray-200">
+                                <h4 class="font-medium text-gray-700 mb-4 flex items-center">
+                                    <i data-lucide="upload" class="w-4 h-4 mr-2"></i>
+                                    Import & Export
+                                </h4>
+                                
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Sheet Name (for Upload)</label>
+                                        <input id="sheetName" value="Budget" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                    </div>
+                                    
+                                    <div class="pt-2 border-t border-gray-200">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Upload Budget File (.xlsx)</label>
+                                        <input id="budgetFile" type="file" accept=".xlsx" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 file:transition-colors file:duration-200 file:cursor-pointer hover:file:shadow-md file:border file:border-primary-200 hover:file:border-primary-300">
+                                        <button id="btnUploadBudget" class="mt-3 w-full px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 flex items-center justify-center space-x-2">
+                                            <i data-lucide="upload" class="w-4 h-4"></i>
+                                            <span>Upload & Replace Data</span>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="pt-4 border-t border-gray-200 space-y-3">
+                                    <!-- SAVE -->
+                                    <button id="btnSave" class="w-full px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors duration-200 flex items-center justify-center space-x-2">
+                                        <i data-lucide="save" class="w-4 h-4"></i>
+                                        <span>Save</span>
+                                    </button>
+
+                                    <!-- SAVE AS -->
+                                    <button id="btnSaveAs" class="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 flex items-center justify-center space-x-2">
+                                        <i data-lucide="save-all" class="w-4 h-4"></i>
+                                        <span>Save As…</span>
+                                    </button>
+
+
+                                    <button id="btnRemoveFile" class="w-full px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors duration-200 flex items-center justify-center space-x-2">
+                                        <i data-lucide="file-x" class="w-4 h-4"></i>
+                                        <span>Remove File & Clear Data</span>
+                                    </button>
+                                    </div>
+
+                                </div>
+                            </div>
+                            
+                            <!-- Master Data -->
+                            <div class="bg-white p-6 rounded-lg border border-gray-200">
+                                <h4 class="font-medium text-gray-700 mb-4 flex items-center">
+                                    <i data-lucide="database" class="w-4 h-4 mr-2"></i>
+                                    Master Data
+                                </h4>
+                                
+                                <div class="space-y-4">
+                                    <div class="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                                        <p class="font-medium mb-1">Required Excel sheets:</p>
+                                        <ul class="text-xs space-y-1">
+                                            <li>• <strong>Clients</strong>: Client column</li>
+                                            <li>• <strong>Products</strong>: Product, Category</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <label class="block text-sm font-medium text-gray-700">Upload Masters File (.xlsx)</label>
+                                    <input id="mastersFile" type="file" accept=".xlsx" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 file:transition-colors file:duration-200 file:cursor-pointer hover:file:shadow-md file:border file:border-primary-200 hover:file:border-primary-300">
+                                    
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <button id="btnUploadMasters" class="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors duration-200 flex items-center justify-center space-x-2">
+                                            <i data-lucide="upload" class="w-4 h-4"></i>
+                                            <span>Upload</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Current Masters Display -->
+                        <div class="bg-white p-6 rounded-lg border border-gray-200">
+                            <h4 class="font-medium text-gray-700 mb-4 flex items-center">
+                                <i data-lucide="list" class="w-4 h-4 mr-2"></i>
+                                Current Master Data
+                            </h4>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h5 class="font-medium text-gray-600 mb-2">Clients (<span id="clientCount">0</span>)</h5>
+                                    <div id="clientsList" class="max-h-32 overflow-y-auto bg-gray-50 p-3 rounded-lg text-sm">
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <h5 class="font-medium text-gray-600 mb-2">Products (<span id="productCount">0</span>)</h5>
+                                    <div id="productsList" class="max-h-32 overflow-y-auto bg-gray-50 p-3 rounded-lg text-sm">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl">
+            <div class="flex items-center space-x-3">
+                <div class="loading-spinner"></div>
+                <span class="text-gray-700">Processing...</span>
+            </div>
+        </div>
+    </div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+</body>
+</html>
+"""
