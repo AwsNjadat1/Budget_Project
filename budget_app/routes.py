@@ -103,7 +103,13 @@ def api_add_entry():
         new_row_df = coerce_narrow_schema_types(new_row_df)
         new_row_df = recalc_narrow_schema(new_row_df, masters["products"])
 
-        session["entries_df"] = pd.concat([entries_df, new_row_df], ignore_index=True)
+        # Check if the main DataFrame is empty
+        if entries_df.empty:
+            # If it is, the new row becomes the entire DataFrame
+            session["entries_df"] = new_row_df
+        else:
+            # If it's not empty, concatenate as before
+            session["entries_df"] = pd.concat([entries_df, new_row_df], ignore_index=True)
         
         return jsonify({
             "status": "success",
