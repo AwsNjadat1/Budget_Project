@@ -23,17 +23,14 @@ def get_or_create_session(session_id: Optional[str] = None) -> Dict[str, Any]:
         "entries_df": pd.DataFrame(columns=[IDCOL] + INTERNAL_DF_COLS),
         "masters": {
             "clients": [
-                "ACME Mining Corp", "Apex Steel Industries", "BlueWater Ports Ltd", 
-                "Cedar Trading Co", "Delta Manufacturing", "Eagle Logistics"
+                "Client 1", "Client 2", "Client 3", 
             ],
             "products": pd.DataFrame({
                 "Product": [
-                    "Iron Ore 62%", "HBI Premium", "Coking Coal", "Rebar ASTM A615",
-                    "Steel Billets", "Wire Rod", "Hot Rolled Coil", "Cold Rolled Sheet"
+                    "Product 1", "Product 2", "Product 3",
                 ],
                 "Category": [
-                    "Iron Ore", "DRI/HBI", "Coal", "Long Steel",
-                    "Semi-Finished", "Wire Products", "Flat Steel", "Flat Steel"
+                    "Category 1", "Category 2", "Category 3", 
                 ],
                 
             }),
