@@ -445,7 +445,7 @@ const UI = {
                 <td class="px-4 py-3 text-sm">${Utils.monthNumToName(entry.Month)}</td>
                 <td class="px-4 py-3 text-sm text-right">${u(entry['Qty (MT)'])}</td>
                 <td class="px-4 py-3 text-sm text-right">${u(entry['PMT (JOD)'])}</td>
-                <td class="px-4 py-3 text-sm text-right">${u(entry['GM %'], 1)}%</td>
+                <td class="px-4 py-3 text-sm text-right">${u(entry['GP %'], 1)}%</td>
                 <td class="px-4 py-3 text-sm text-green-600 font-medium text-right">${u(entry['Sales (JOD)'], 0)}</td>
                 <td class="px-4 py-3 text-sm text-blue-600 font-medium text-right">${u(entry['GP (JOD)'], 0)}</td>
                 <td class="px-4 py-3 text-sm"><span class="px-2 py-1 text-xs rounded-full ${entry.Booked === 'Yes' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${entry.Booked || 'No'}</span></td>
@@ -527,7 +527,7 @@ const EventHandlers = {
             }
             const warnings = [];
             if (isNaN(baseData.gm_percent) || baseData.gm_percent === 0) {
-                warnings.push("Annual GM % cannot be 0.");
+                warnings.push("Annual GP % cannot be 0.");
             }
             
             entriesToAdd.forEach(entry => {

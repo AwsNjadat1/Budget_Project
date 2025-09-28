@@ -9,17 +9,17 @@ IDCOL = "_rid"
 # --- Internal narrow schema for ENTRIES_DF ---
 INTERNAL_DF_COLS = [
     "Business Unit", "Section", "Client", "Category", "Product", "Month",
-    "Qty (MT)", "PMT (JOD)", "GM %", "Sales (JOD)", "GP (JOD)", "Sector", "Booked"
+    "Qty (MT)", "PMT (JOD)", "GP %", "Sales (JOD)", "GP (JOD)", "Sector", "Booked"
 ]
 INTERNAL_NUMERIC_COLS = [
-    "Qty (MT)", "PMT (JOD)", "GM %", "Sales (JOD)", "GP (JOD)"
+    "Qty (MT)", "PMT (JOD)", "GP %", "Sales (JOD)", "GP (JOD)"
 ]
 
 # --- Original wide schema for external Excel files ---
 WIDE_EXCEL_COLS = [
     "Business Unit", "Section", "Client", "Category", "Product",
     "PMT_Q1 (JOD)", "PMT_Q2 (JOD)", "PMT_Q3 (JOD)", "PMT_Q4 (JOD)",
-    "GM %",
+    "GP %",
     "Qty_Jan (MT)", "Qty_Feb (MT)", "Qty_Mar (MT)", "Qty_Apr (MT)", "Qty_May (MT)", "Qty_Jun (MT)",
     "Qty_Jul (MT)", "Qty_Aug (MT)", "Qty_Sep (MT)", "Qty_Oct (MT)", "Qty_Nov (MT)", "Qty_Dec (MT)",
     "Sales_Q1 (JOD)", "Sales_Q2 (JOD)", "Sales_Q3 (JOD)", "Sales_Q4 (JOD)", "Total_Sales (JOD)",
@@ -27,7 +27,7 @@ WIDE_EXCEL_COLS = [
     "Sector", "Booked"
 ]
 WIDE_EXCEL_NUMERIC_COLS = [
-    "PMT_Q1 (JOD)", "PMT_Q2 (JOD)", "PMT_Q3 (JOD)", "PMT_Q4 (JOD)", "GM %",
+    "PMT_Q1 (JOD)", "PMT_Q2 (JOD)", "PMT_Q3 (JOD)", "PMT_Q4 (JOD)", "GP %",
     "Qty_Jan (MT)", "Qty_Feb (MT)", "Qty_Mar (MT)", "Qty_Apr (MT)", "Qty_May (MT)", "Qty_Jun (MT)",
     "Qty_Jul (MT)", "Qty_Aug (MT)", "Qty_Sep (MT)", "Qty_Oct (MT)", "Qty_Nov (MT)", "Qty_Dec (MT)",
     "Sales_Q1 (JOD)", "Sales_Q2 (JOD)", "Sales_Q3 (JOD)", "Sales_Q4 (JOD)", "Total_Sales (JOD)",
@@ -37,7 +37,7 @@ WIDE_EXCEL_NUMERIC_COLS = [
 # --- Columns for saving/exporting Excel files ---
 SAVE_EXCEL_COLS = [
     "Business Unit", "Section", "Client", "Category", "Product", "Month",
-    "Qty (MT)", "PMT (JOD)", "GM %", "Sales (JOD)", "GP (JOD)", "Sector", "Booked"
+    "Qty (MT)", "PMT (JOD)", "GP %", "Sales (JOD)", "GP (JOD)", "Sector", "Booked"
 ]
 
 
@@ -160,8 +160,8 @@ def recalc_wide_schema(df: pd.DataFrame, products_df: pd.DataFrame) -> pd.DataFr
     # Total Sales
     df["Total_Sales (JOD)"] = (df["Sales_Q1 (JOD)"] + df["Sales_Q2 (JOD)"] + df["Sales_Q3 (JOD)"] + df["Sales_Q4 (JOD)"]).round(2)
     
-    # Calculate GP for each quarter using the annual GM%
-    gm_factor = df["GM %"] / 100.0
+    # Calculate GP for each quarter using the annual GP%
+    gm_factor = df["GP %"] / 100.0
     df["GP_Q1 (JOD)"] = (df["Sales_Q1 (JOD)"] * gm_factor).round(2)
     df["GP_Q2 (JOD)"] = (df["Sales_Q2 (JOD)"] * gm_factor).round(2)
     df["GP_Q3 (JOD)"] = (df["Sales_Q3 (JOD)"] * gm_factor).round(2)
@@ -184,7 +184,7 @@ def recalc_narrow_schema(df: pd.DataFrame, products_df: pd.DataFrame) -> pd.Data
     )
     
     df["Sales (JOD)"] = (df["Qty (MT)"] * df["PMT (JOD)"]).round(2)
-    df["GP (JOD)"] = (df["Sales (JOD)"] * df["GM %"] / 100.0).round(2)
+    df["GP (JOD)"] = (df["Sales (JOD)"] * df["GP %"] / 100.0).round(2)
     
     return df
 
@@ -213,7 +213,7 @@ def convert_wide_to_narrow(df_wide: pd.DataFrame) -> pd.DataFrame:
     if not month_qty_cols:
         return pd.DataFrame(columns=[IDCOL] + INTERNAL_DF_COLS)
 
-    id_vars_base = ["Business Unit", "Section", "Client", "Category", "Product", "GM %", "Sector", "Booked"]
+    id_vars_base = ["Business Unit", "Section", "Client", "Category", "Product", "GP %", "Sector", "Booked"]
     id_vars_pmt = [c for c in WIDE_EXCEL_COLS if c.startswith("PMT_Q")]
     id_vars = list(set(id_vars_base + id_vars_pmt + [IDCOL]))
     id_vars = [col for col in id_vars if col in work.columns]
@@ -237,9 +237,9 @@ def convert_wide_to_narrow(df_wide: pd.DataFrame) -> pd.DataFrame:
         return 0.0
     
     df_melted["PMT (JOD)"] = df_melted.apply(get_monthly_pmt, axis=1)
-    df_melted["GM %"] = pd.to_numeric(df_melted.get("GM %", 0.0), errors="coerce").fillna(0.0)
+    df_melted["GP %"] = pd.to_numeric(df_melted.get("GP %", 0.0), errors="coerce").fillna(0.0)
     df_melted["Sales (JOD)"] = (df_melted["Qty (MT)"] * df_melted["PMT (JOD)"]).round(2)
-    df_melted["GP (JOD)"] = (df_melted["Sales (JOD)"] * df_melted["GM %"] / 100.0).round(2)
+    df_melted["GP (JOD)"] = (df_melted["Sales (JOD)"] * df_melted["GP %"] / 100.0).round(2)
 
     final_df = df_melted[[col for col in [IDCOL] + INTERNAL_DF_COLS if col in df_melted.columns]]
     

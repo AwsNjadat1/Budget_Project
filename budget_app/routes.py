@@ -71,9 +71,9 @@ def api_add_entry():
             
         try:
             if float(data.get("gm_percent")) == 0:
-                errors.append("GM % cannot be 0.")
+                errors.append("GP % cannot be 0.")
         except (ValueError, TypeError, AttributeError):
-            errors.append("Invalid value for GM %.")
+            errors.append("Invalid value for GP %.")
 
         if errors:
             return jsonify({
@@ -91,7 +91,7 @@ def api_add_entry():
             "Product": str(data.get("product", "")),
             "Month": month_name_to_num(data.get("month_name", "Jan")),
             "PMT (JOD)": float(data.get("pmt", 0)),
-            "GM %": float(data.get("gm_percent", 0)),
+            "GP %": float(data.get("gm_percent", 0)),
             "Qty (MT)": float(data.get("qty", 0)),
             "Sales (JOD)": 0.0,
             "GP (JOD)": 0.0,
