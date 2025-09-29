@@ -1,12 +1,7 @@
-// main.js
-
 // Initialize Lucide icons
 lucide.createIcons();
 
-// --- NEW: Initialize the Auth0 client variable ---
-let auth0Client = null;
-
-// Application State (no changes)
+// Application State
 const AppState = {
     entries: [],
     masters: {
@@ -25,66 +20,120 @@ const AppState = {
     },
     selectedEntries: new Set()
 };
+let sessionId = null;
 
-// --- DELETE the old sessionId variable ---
-// let sessionId = null;
-
-// rebuildMasterLookups and Utility Functions (no changes)
 function rebuildMasterLookups() {
+    // Reset the maps to ensure they are clean from old data
     AppState.masters.productMap = {};
     AppState.masters.pmtMap = {};
     AppState.masters.gmMap = {};
+
     (AppState.masters.products || []).forEach(product => {
         const p = product?.Product;
-        if (!p) return;
+        if (!p) return; // Skip if product name is missing
+
         AppState.masters.productMap[p] = product?.Category ?? '';
+
         const pmtVal = parseFloat(product?.Default_PMT);
         const gmVal = parseFloat(product?.['Default_GM%']);
-        if (!isNaN(pmtVal)) AppState.masters.pmtMap[p] = pmtVal;
-        if (!isNaN(gmVal)) AppState.masters.gmMap[p] = gmVal;
+
+        if (!isNaN(pmtVal)) {
+            AppState.masters.pmtMap[p] = pmtVal;
+        }
+        if (!isNaN(gmVal)) {
+            AppState.masters.gmMap[p] = gmVal;
+        }
     });
     console.log("Master lookup maps have been rebuilt.");
 }
 
+// Utility Functions
 const Utils = {
-    formatCurrency: (amount) => new Intl.NumberFormat('en-JO', { style: 'currency', currency: 'JOD', minimumFractionDigits: 2 }).format(amount || 0),
-    formatNumber: (num, decimals = 2) => {
-        if (isNaN(num) || num === null) return (0).toFixed(decimals);
-        return new Intl.NumberFormat('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(num);
+    formatCurrency: (amount) => {
+        return new Intl.NumberFormat('en-JO', {
+            style: 'currency',
+            currency: 'JOD',
+            minimumFractionDigits: 2
+        }).format(amount || 0);
     },
-    monthNameToNum: (name) => { const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return months.indexOf(name) + 1 || parseInt(name) || 1; },
-    monthNumToName: (num) => { const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return (num >= 1 && num <= 12) ? months[num - 1] : '-'; },
+    
+    formatNumber: (num, decimals = 2) => {
+        // Return a default formatted string for invalid inputs
+        if (isNaN(num) || num === null) {
+            return (0).toFixed(decimals);
+        }
+        // Use the Internationalization API for robust number formatting
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        }).format(num);
+    },
+    
+    monthNameToNum: (name) => {
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return months.indexOf(name) + 1 || parseInt(name) || 1;
+    },
+    
+    monthNumToName: (num) => {
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return (num >= 1 && num <= 12) ? months[num - 1] : '-';
+    },
+    
     showNotification: (message, type = 'info') => {
         const container = document.getElementById('notificationContainer');
         const notification = document.createElement('div');
-        notification.className = `notification bg-white border-l-4 p-4 rounded-lg shadow-lg ${type === 'success' ? 'border-green-500' : type === 'error' ? 'border-red-500' : type === 'warning' ? 'border-yellow-500' : 'border-blue-500'}`;
-        const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : type === 'warning' ? 'alert-triangle' : 'info';
-        const color = type === 'success' ? 'text-green-600' : type === 'error' ? 'text-red-600' : type === 'warning' ? 'text-yellow-600' : 'text-blue-600';
-        notification.innerHTML = `<div class="flex items-start"><i data-lucide="${icon}" class="w-5 h-5 ${color} mr-3 flex-shrink-0 mt-1"></i><div class="text-gray-800">${message}</div><button class="ml-auto text-gray-400 hover:text-gray-600" onclick="this.parentElement.parentElement.remove()"><i data-lucide="x" class="w-4 h-4"></i></button></div>`;
+        notification.className = `notification bg-white border-l-4 p-4 rounded-lg shadow-lg ${
+            type === 'success' ? 'border-green-500' : 
+            type === 'error' ? 'border-red-500' : 
+            type === 'warning' ? 'border-yellow-500' : 'border-blue-500'
+        }`;
+        
+        const icon = type === 'success' ? 'check-circle' : 
+                    type === 'error' ? 'x-circle' : 
+                    type === 'warning' ? 'alert-triangle' : 'info';
+        
+        const color = type === 'success' ? 'text-green-600' : 
+                    type === 'error' ? 'text-red-600' : 
+                    type === 'warning' ? 'text-yellow-600' : 'text-blue-600';
+        
+        notification.innerHTML = `
+            <div class="flex items-start">
+                <i data-lucide="${icon}" class="w-5 h-5 ${color} mr-3 flex-shrink-0 mt-1"></i>
+                <div class="text-gray-800">${message}</div>
+                <button class="ml-auto text-gray-400 hover:text-gray-600" onclick="this.parentElement.parentElement.remove()">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `;
+        
         container.appendChild(notification);
         lucide.createIcons();
-        setTimeout(() => { if (notification.parentElement) notification.remove(); }, 7000);
+        
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 7000); // Increased timeout for potentially longer messages
     },
-    showLoading: (show = true) => document.getElementById('loadingOverlay').classList.toggle('hidden', !show)
+    
+    showLoading: (show = true) => {
+        document.getElementById('loadingOverlay').classList.toggle('hidden', !show);
+    }
 };
 
-
-// API Functions - UPDATED
+// API Functions
 const API = {
-    // --- REPLACE _fetchWithSession with _fetchWithAuth ---
-    async _fetchWithAuth(url, options = {}) {
-        // This should only be called if auth0Client is initialized
-        if (!auth0Client) throw new Error("Auth client not initialized.");
-        
-        // Get the access token silently from the Auth0 client
-        const accessToken = await auth0Client.getTokenSilently();
-
+    // Helper function to include the session ID in all API calls
+    async _fetchWithSession(url, options = {}) {
         const headers = {
             'Content-Type': 'application/json',
-            // Send the token as a Bearer token for authentication
-            'Authorization': `Bearer ${accessToken}`,
             ...options.headers,
         };
+
+        // Add the session ID to the header if we have one
+        if (sessionId) {
+            headers['X-Session-ID'] = sessionId;
+        }
 
         const response = await fetch(url, { ...options, headers });
 
@@ -95,14 +144,22 @@ const API = {
         return response.json();
     },
 
-    // Update all methods to use the new helper
     async loadState() {
         try {
-            const data = await this._fetchWithAuth('/api/state');
+            // The first call to loadState will not have a session ID.
+            // The server will create a new session and return the ID.
+            const data = await this._fetchWithSession('/api/state');
+            
+            sessionId = data.session_id; // <-- CRITICAL: Store the session ID
+            console.log("Obtained session ID:", sessionId);
+
             AppState.entries = data.entries || [];
             AppState.masters.clients = data.masters?.clients || [];
             AppState.masters.products = data.masters?.products || [];
+
+            // Build lookup maps
             rebuildMasterLookups();
+
             return data;
         } catch (error) {
             Utils.showNotification('Failed to load application state: ' + error.message, 'error');
@@ -113,7 +170,7 @@ const API = {
     async addEntry(entryData) {
         try {
             Utils.showLoading?.(true);
-            const data = await this._fetchWithAuth('/api/add', {
+            const data = await this._fetchWithSession('/api/add', {
                 method: 'POST',
                 body: JSON.stringify(entryData)
             });
@@ -130,7 +187,7 @@ const API = {
     async commitChanges(editedRows, deleteIds) {
         try {
             Utils.showLoading?.(true);
-            const data = await this._fetchWithAuth('/api/commit', {
+            const data = await this._fetchWithSession('/api/commit', {
                 method: 'POST',
                 body: JSON.stringify({ editedRows, deleteIds })
             });
@@ -148,7 +205,7 @@ const API = {
     async recalculate() {
         try {
             Utils.showLoading?.(true);
-            const data = await this._fetchWithAuth('/api/recalc', { method: 'POST' });
+            const data = await this._fetchWithSession('/api/recalc', { method: 'POST' });
             AppState.entries = data.entries || [];
             Utils.showNotification('Data recalculated successfully', 'success');
             return data;
@@ -161,61 +218,402 @@ const API = {
     }
 };
 
-// UI Components (no changes needed in this object)
+// UI Components
 const UI = {
-    initializeTabs: () => { /* ... existing code ... */ },
-    initializeForm: () => { /* ... existing code ... */ },
-    updateProductDefaults: () => { /* ... existing code ... */ },
-    updatePreview: () => { /* ... existing code ... */ },
-    updateStats: () => { /* ... existing code ... */ },
-    initializeFilters: () => { /* ... existing code ... */ },
-    populateFilter: (selectId, options, defaultText) => { /* ... existing code ... */ },
-    getFilteredEntries: () => { /* ... existing code ... */ },
-    renderDataTable: () => { /* ... existing code ... */ },
-    updateMasterDataDisplay: () => { /* ... existing code ... */ },
-    // --- Just copy all your existing UI functions here ---
+    initializeTabs() {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const targetId = button.id.replace('tab', 'panel');
+                
+                tabButtons.forEach(btn => {
+                    btn.classList.remove('border-primary-500', 'text-primary-600');
+                    btn.classList.add('border-transparent', 'text-gray-500');
+                });
+                button.classList.remove('border-transparent', 'text-gray-500');
+                button.classList.add('border-primary-500', 'text-primary-600');
+                
+                tabPanels.forEach(panel => panel.classList.add('hidden'));
+                document.getElementById(targetId).classList.remove('hidden');
+                
+                if (targetId === 'panelManage') {
+                    this.renderDataTable();
+                }
+            });
+        });
+    },
+    
+    initializeForm() {
+        const clientSelect = document.getElementById('client');
+        if (clientSelect) {
+            clientSelect.innerHTML = '';
+            AppState.masters.clients.forEach(client => {
+                const option = document.createElement('option');
+                option.value = client;
+                option.textContent = client;
+                clientSelect.appendChild(option);
+            });
+        }
+        
+        const productSelect = document.getElementById('product');
+        if (productSelect) {
+            productSelect.innerHTML = '';
+            AppState.masters.products.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product.Product;
+                option.textContent = product.Product;
+                productSelect.appendChild(option);
+            });
+        }
+        
+        const productField = document.getElementById('product');
+        if (productField) {
+            productField.addEventListener('change', this.updateProductDefaults.bind(this));
+        }
+        
+        ['pmtQ1', 'pmtQ2', 'pmtQ3', 'pmtQ4', 'gmPercent'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('input', this.updatePreview.bind(this));
+            }
+        });
+        
+        ['qtyJan', 'qtyFeb', 'qtyMar', 'qtyApr', 'qtyMay', 'qtyJun',
+            'qtyJul', 'qtyAug', 'qtySep', 'qtyOct', 'qtyNov', 'qtyDec'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('input', this.updatePreview.bind(this));
+            }
+        });
+        
+        this.updateProductDefaults();
+        this.updatePreview();
+    },
+    
+    updateProductDefaults() {
+        const productField = document.getElementById('product');
+        const categoryField = document.getElementById('categoryDisplay');
+        
+        if (!productField || !categoryField) return;
+        
+        const product = productField.value;
+        const category = AppState.masters.productMap[product] || 'Unknown';
+        // Get the defaults. They will be a number or undefined.
+        const defaultPMT = AppState.masters.pmtMap[product];
+        const defaultGM = AppState.masters.gmMap[product];
+        
+        categoryField.value = category;
+        
+        ['pmtQ1', 'pmtQ2', 'pmtQ3', 'pmtQ4'].forEach(id => {
+            const field = document.getElementById(id);
+            if (field && !field.value) {
+                    // Use the nullish coalescing operator '??'
+                // It sets the value to '' ONLY if defaultPMT is null or undefined
+                field.value = defaultPMT ?? '';
+            }
+        });
+        
+        const gmField = document.getElementById('gmPercent');
+        if (gmField && !gmField.value) {
+            gmField.value = defaultGM ?? '';
+        }
+        
+        this.updatePreview();
+    },
+    
+    updatePreview() {
+        const pmtQ1 = parseFloat(document.getElementById('pmtQ1')?.value) || 0;
+        const pmtQ2 = parseFloat(document.getElementById('pmtQ2')?.value) || 0;
+        const pmtQ3 = parseFloat(document.getElementById('pmtQ3')?.value) || 0;
+        const pmtQ4 = parseFloat(document.getElementById('pmtQ4')?.value) || 0;
+        const gm = parseFloat(document.getElementById('gmPercent')?.value) || 0;
+        
+        const qtyJan = parseFloat(document.getElementById('qtyJan')?.value) || 0;
+        const qtyFeb = parseFloat(document.getElementById('qtyFeb')?.value) || 0;
+        const qtyMar = parseFloat(document.getElementById('qtyMar')?.value) || 0;
+        const qtyApr = parseFloat(document.getElementById('qtyApr')?.value) || 0;
+        const qtyMay = parseFloat(document.getElementById('qtyMay')?.value) || 0;
+        const qtyJun = parseFloat(document.getElementById('qtyJun')?.value) || 0;
+        const qtyJul = parseFloat(document.getElementById('qtyJul')?.value) || 0;
+        const qtyAug = parseFloat(document.getElementById('qtyAug')?.value) || 0;
+        const qtySep = parseFloat(document.getElementById('qtySep')?.value) || 0;
+        const qtyOct = parseFloat(document.getElementById('qtyOct')?.value) || 0;
+        const qtyNov = parseFloat(document.getElementById('qtyNov')?.value) || 0;
+        const qtyDec = parseFloat(document.getElementById('qtyDec')?.value) || 0;
+        
+        const salesQ1 = (qtyJan + qtyFeb + qtyMar) * pmtQ1;
+        const salesQ2 = (qtyApr + qtyMay + qtyJun) * pmtQ2;
+        const salesQ3 = (qtyJul + qtyAug + qtySep) * pmtQ3;
+        const salesQ4 = (qtyOct + qtyNov + qtyDec) * pmtQ4;
+        const totalSales = salesQ1 + salesQ2 + salesQ3 + salesQ4;
+        
+        const gmFactor = gm / 100;
+        const gpQ1 = salesQ1 * gmFactor;
+        const gpQ2 = salesQ2 * gmFactor;
+        const gpQ3 = salesQ3 * gmFactor;
+        const gpQ4 = salesQ4 * gmFactor;
+        const totalGP = gpQ1 + gpQ2 + gpQ3 + gpQ4;
+        
+        const u = Utils.formatNumber;
+        document.getElementById('previewQ1Sales').textContent = u(salesQ1, 0) + ' JOD';
+        document.getElementById('previewQ2Sales').textContent = u(salesQ2, 0) + ' JOD';
+        document.getElementById('previewQ3Sales').textContent = u(salesQ3, 0) + ' JOD';
+        document.getElementById('previewQ4Sales').textContent = u(salesQ4, 0) + ' JOD';
+        document.getElementById('previewTotalSales').textContent = u(totalSales, 0) + ' JOD';
+        document.getElementById('previewQ1GP').textContent = u(gpQ1, 0) + ' JOD';
+        document.getElementById('previewQ2GP').textContent = u(gpQ2, 0) + ' JOD';
+        document.getElementById('previewQ3GP').textContent = u(gpQ3, 0) + ' JOD';
+        document.getElementById('previewQ4GP').textContent = u(gpQ4, 0) + ' JOD';
+        document.getElementById('previewTotalGP').textContent = u(totalGP, 0) + ' JOD';
+    },
+    
+    updateStats() {
+        const totalEntries = AppState.entries.length;
+        const totalSales = AppState.entries.reduce((sum, entry) => sum + (parseFloat(entry['Sales (JOD)']) || 0), 0);
+        const totalGP = AppState.entries.reduce((sum, entry) => sum + (parseFloat(entry['GP (JOD)']) || 0), 0);
+        const avgGM = totalSales > 0 ? (totalGP / totalSales) * 100 : 0;
+        
+        document.getElementById('totalEntries').textContent = totalEntries;
+        document.getElementById('totalSales').textContent = Utils.formatNumber(totalSales, 0) + ' JOD';
+        document.getElementById('totalGP').textContent = Utils.formatNumber(totalGP, 0) + ' JOD';
+        document.getElementById('avgGM').textContent = Utils.formatNumber(avgGM, 1) + '%';
+    },
+    
+    initializeFilters() {
+        const businessUnits = [...new Set(AppState.entries.map(e => e['Business Unit']).filter(Boolean))];
+        const sections = [...new Set(AppState.entries.map(e => e.Section).filter(Boolean))];
+        const clients = [...new Set(AppState.entries.map(e => e.Client).filter(Boolean))];
+        const products = [...new Set(AppState.entries.map(e => e.Product).filter(Boolean))];
+        
+        this.populateFilter('filterBU', businessUnits, '(All Business Units)');
+        this.populateFilter('filterSection', sections, '(All Sections)');
+        this.populateFilter('filterClient', clients, '(All Clients)');
+        this.populateFilter('filterProduct', products, '(All Products)');
+        
+        ['filterBU', 'filterSection', 'filterClient', 'filterProduct', 'filterSearch'].forEach(id => {
+            document.getElementById(id).addEventListener('input', this.renderDataTable.bind(this));
+        });
+    },
+    
+    populateFilter(selectId, options, defaultText) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = `<option value="">${defaultText}</option>`;
+        options.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option;
+            optionElement.textContent = option;
+            select.appendChild(optionElement);
+        });
+    },
+    
+    getFilteredEntries() {
+        const filters = {
+            businessUnit: document.getElementById('filterBU').value,
+            section: document.getElementById('filterSection').value,
+            client: document.getElementById('filterClient').value,
+            product: document.getElementById('filterProduct').value,
+            search: document.getElementById('filterSearch').value.toLowerCase()
+        };
+        
+        return AppState.entries.filter(entry => {
+            if (filters.businessUnit && entry['Business Unit'] !== filters.businessUnit) return false;
+            if (filters.section && entry.Section !== filters.section) return false;
+            if (filters.client && entry.Client !== filters.client) return false;
+            if (filters.product && entry.Product !== filters.product) return false;
+            if (filters.search && !`${entry.Client} ${entry.Product}`.toLowerCase().includes(filters.search)) return false;
+            return true;
+        });
+    },
+    
+    renderDataTable() {
+        const filteredEntries = this.getFilteredEntries();
+        const tbody = document.getElementById('dataTableBody');
+        tbody.innerHTML = '';
+        
+        filteredEntries.forEach(entry => {
+            const row = document.createElement('tr');
+            row.className = 'table-row transition-all duration-150';
+            const u = Utils.formatNumber;
+            row.innerHTML = `
+                <td class="px-4 py-3"><input type="checkbox" class="entry-checkbox rounded" data-id="${entry._rid}"></td>
+                <td class="px-4 py-3 text-sm">${entry['Business Unit'] || ''}</td>
+                <td class="px-4 py-3 text-sm">${entry.Section || ''}</td>
+                <td class="px-4 py-3 text-sm">${entry.Client || ''}</td>
+                <td class="px-4 py-3 text-sm">${entry.Product || ''}</td>
+                <td class="px-4 py-3 text-sm">${Utils.monthNumToName(entry.Month)}</td>
+                <td class="px-4 py-3 text-sm text-right">${u(entry['Qty (MT)'])}</td>
+                <td class="px-4 py-3 text-sm text-right">${u(entry['PMT (JOD)'])}</td>
+                <td class="px-4 py-3 text-sm text-right">${u(entry['GP %'], 1)}%</td>
+                <td class="px-4 py-3 text-sm text-green-600 font-medium text-right">${u(entry['Sales (JOD)'], 0)}</td>
+                <td class="px-4 py-3 text-sm text-blue-600 font-medium text-right">${u(entry['GP (JOD)'], 0)}</td>
+                <td class="px-4 py-3 text-sm"><span class="px-2 py-1 text-xs rounded-full ${entry.Booked === 'Yes' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${entry.Booked || 'No'}</span></td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+        const filteredSales = filteredEntries.reduce((sum, entry) => sum + (parseFloat(entry['Sales (JOD)']) || 0), 0);
+        const filteredGP = filteredEntries.reduce((sum, entry) => sum + (parseFloat(entry['GP (JOD)']) || 0), 0);
+        
+        document.getElementById('filteredCount').textContent = filteredEntries.length;
+        document.getElementById('filteredSales').textContent = Utils.formatNumber(filteredSales, 0) + ' JOD';
+        document.getElementById('filteredGP').textContent = Utils.formatNumber(filteredGP, 0) + ' JOD';
+        
+        const selectAllCheckbox = document.getElementById('selectAll');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', (e) => {
+                document.querySelectorAll('.entry-checkbox').forEach(cb => cb.checked = e.target.checked);
+            });
+        }
+    },
+    
+    updateMasterDataDisplay() {
+        const clientsList = document.getElementById('clientsList');
+        const clientCount = document.getElementById('clientCount');
+        clientCount.textContent = AppState.masters.clients.length;
+        clientsList.innerHTML = AppState.masters.clients.map(client => `<div class="py-1">${client}</div>`).join('') || '<div class="italic">No clients loaded</div>';
+        
+        const productsList = document.getElementById('productsList');
+        const productCount = document.getElementById('productCount');
+        productCount.textContent = AppState.masters.products.length;
+        productsList.innerHTML = AppState.masters.products.map(product => `<div class="py-1">${product.Product} <span class="text-gray-500">(${product.Category})</span></div>`).join('') || '<div class="italic">No products loaded</div>';
+    }
 };
-// Copying your UI functions for completeness:
-UI.initializeTabs = () => {const tabButtons=document.querySelectorAll('.tab-button'),tabPanels=document.querySelectorAll('.tab-panel');tabButtons.forEach(button=>{button.addEventListener('click',()=>{const targetId=button.id.replace('tab','panel');tabButtons.forEach(btn=>{btn.classList.remove('border-primary-500','text-primary-600');btn.classList.add('border-transparent','text-gray-500')});button.classList.remove('border-transparent','text-gray-500');button.classList.add('border-primary-500','text-primary-600');tabPanels.forEach(panel=>panel.classList.add('hidden'));document.getElementById(targetId).classList.remove('hidden');if(targetId==='panelManage')this.renderDataTable()})})};
-UI.initializeForm = () => {const clientSelect=document.getElementById('client');if(clientSelect){clientSelect.innerHTML='';AppState.masters.clients.forEach(client=>{const option=document.createElement('option');option.value=client;option.textContent=client;clientSelect.appendChild(option)})};const productSelect=document.getElementById('product');if(productSelect){productSelect.innerHTML='';AppState.masters.products.forEach(product=>{const option=document.createElement('option');option.value=product.Product;option.textContent=product.Product;productSelect.appendChild(option)})};const productField=document.getElementById('product');if(productField)productField.addEventListener('change',this.updateProductDefaults.bind(this));['pmtQ1','pmtQ2','pmtQ3','pmtQ4','gmPercent'].forEach(id=>{const element=document.getElementById(id);if(element)element.addEventListener('input',this.updatePreview.bind(this))});['qtyJan','qtyFeb','qtyMar','qtyApr','qtyMay','qtyJun','qtyJul','qtyAug','qtySep','qtyOct','qtyNov','qtyDec'].forEach(id=>{const element=document.getElementById(id);if(element)element.addEventListener('input',this.updatePreview.bind(this))});this.updateProductDefaults();this.updatePreview()};
-UI.updateProductDefaults = () => {const productField=document.getElementById('product'),categoryField=document.getElementById('categoryDisplay');if(!productField||!categoryField)return;const product=productField.value,category=AppState.masters.productMap[product]||'Unknown',defaultPMT=AppState.masters.pmtMap[product],defaultGM=AppState.masters.gmMap[product];categoryField.value=category;['pmtQ1','pmtQ2','pmtQ3','pmtQ4'].forEach(id=>{const field=document.getElementById(id);if(field&&!field.value)field.value=defaultPMT??''});const gmField=document.getElementById('gmPercent');if(gmField&&!gmField.value)gmField.value=defaultGM??'';this.updatePreview()};
-UI.updatePreview = () => {const pmtQ1=parseFloat(document.getElementById('pmtQ1')?.value)||0,pmtQ2=parseFloat(document.getElementById('pmtQ2')?.value)||0,pmtQ3=parseFloat(document.getElementById('pmtQ3')?.value)||0,pmtQ4=parseFloat(document.getElementById('pmtQ4')?.value)||0,gm=parseFloat(document.getElementById('gmPercent')?.value)||0,qtyJan=parseFloat(document.getElementById('qtyJan')?.value)||0,qtyFeb=parseFloat(document.getElementById('qtyFeb')?.value)||0,qtyMar=parseFloat(document.getElementById('qtyMar')?.value)||0,qtyApr=parseFloat(document.getElementById('qtyApr')?.value)||0,qtyMay=parseFloat(document.getElementById('qtyMay')?.value)||0,qtyJun=parseFloat(document.getElementById('qtyJun')?.value)||0,qtyJul=parseFloat(document.getElementById('qtyJul')?.value)||0,qtyAug=parseFloat(document.getElementById('qtyAug')?.value)||0,qtySep=parseFloat(document.getElementById('qtySep')?.value)||0,qtyOct=parseFloat(document.getElementById('qtyOct')?.value)||0,qtyNov=parseFloat(document.getElementById('qtyNov')?.value)||0,qtyDec=parseFloat(document.getElementById('qtyDec')?.value)||0,salesQ1=(qtyJan+qtyFeb+qtyMar)*pmtQ1,salesQ2=(qtyApr+qtyMay+qtyJun)*pmtQ2,salesQ3=(qtyJul+qtyAug+qtySep)*pmtQ3,salesQ4=(qtyOct+qtyNov+qtyDec)*pmtQ4,totalSales=salesQ1+salesQ2+salesQ3+salesQ4,gmFactor=gm/100,gpQ1=salesQ1*gmFactor,gpQ2=salesQ2*gmFactor,gpQ3=salesQ3*gmFactor,gpQ4=salesQ4*gmFactor,totalGP=gpQ1+gpQ2+gpQ3+gpQ4;const u=Utils.formatNumber;document.getElementById('previewQ1Sales').textContent=u(salesQ1,0)+' JOD';document.getElementById('previewQ2Sales').textContent=u(salesQ2,0)+' JOD';document.getElementById('previewQ3Sales').textContent=u(salesQ3,0)+' JOD';document.getElementById('previewQ4Sales').textContent=u(salesQ4,0)+' JOD';document.getElementById('previewTotalSales').textContent=u(totalSales,0)+' JOD';document.getElementById('previewQ1GP').textContent=u(gpQ1,0)+' JOD';document.getElementById('previewQ2GP').textContent=u(gpQ2,0)+' JOD';document.getElementById('previewQ3GP').textContent=u(gpQ3,0)+' JOD';document.getElementById('previewQ4GP').textContent=u(gpQ4,0)+' JOD';document.getElementById('previewTotalGP').textContent=u(totalGP,0)+' JOD'};
-UI.updateStats = () => {const totalEntries=AppState.entries.length,totalSales=AppState.entries.reduce((sum,entry)=>sum+(parseFloat(entry['Sales (JOD)'])||0),0),totalGP=AppState.entries.reduce((sum,entry)=>sum+(parseFloat(entry['GP (JOD)'])||0),0),avgGM=totalSales>0?totalGP/totalSales*100:0;document.getElementById('totalEntries').textContent=totalEntries;document.getElementById('totalSales').textContent=Utils.formatNumber(totalSales,0)+' JOD';document.getElementById('totalGP').textContent=Utils.formatNumber(totalGP,0)+' JOD';document.getElementById('avgGM').textContent=Utils.formatNumber(avgGM,1)+'%';};
-UI.initializeFilters = () => {const businessUnits=[...new Set(AppState.entries.map(e=>e['Business Unit']).filter(Boolean))],sections=[...new Set(AppState.entries.map(e=>e.Section).filter(Boolean))],clients=[...new Set(AppState.entries.map(e=>e.Client).filter(Boolean))],products=[...new Set(AppState.entries.map(e=>e.Product).filter(Boolean))];this.populateFilter('filterBU',businessUnits,'(All Business Units)');this.populateFilter('filterSection',sections,'(All Sections)');this.populateFilter('filterClient',clients,'(All Clients)');this.populateFilter('filterProduct',products,'(All Products)');['filterBU','filterSection','filterClient','filterProduct','filterSearch'].forEach(id=>{document.getElementById(id).addEventListener('input',this.renderDataTable.bind(this))})};
-UI.populateFilter = (selectId,options,defaultText)=>{const select=document.getElementById(selectId);select.innerHTML=`<option value="">${defaultText}</option>`;options.forEach(option=>{const optionElement=document.createElement('option');optionElement.value=option;optionElement.textContent=option;select.appendChild(optionElement)})};
-UI.getFilteredEntries = () => {const filters={businessUnit:document.getElementById('filterBU').value,section:document.getElementById('filterSection').value,client:document.getElementById('filterClient').value,product:document.getElementById('filterProduct').value,search:document.getElementById('filterSearch').value.toLowerCase()};return AppState.entries.filter(entry=>{if(filters.businessUnit&&entry['Business Unit']!==filters.businessUnit)return false;if(filters.section&&entry.Section!==filters.section)return false;if(filters.client&&entry.Client!==filters.client)return false;if(filters.product&&entry.Product!==filters.product)return false;if(filters.search&&!`${entry.Client} ${entry.Product}`.toLowerCase().includes(filters.search))return false;return true})};
-UI.renderDataTable = () => {const filteredEntries=this.getFilteredEntries(),tbody=document.getElementById('dataTableBody');tbody.innerHTML='';filteredEntries.forEach(entry=>{const row=document.createElement('tr');row.className='table-row transition-all duration-150';const u=Utils.formatNumber;row.innerHTML=`<td class="px-4 py-3"><input type="checkbox" class="entry-checkbox rounded" data-id="${entry._rid}"></td>\n                <td class="px-4 py-3 text-sm">${entry['Business Unit']||''}</td>\n                <td class="px-4 py-3 text-sm">${entry.Section||''}</td>\n                <td class="px-4 py-3 text-sm">${entry.Client||''}</td>\n                <td class="px-4 py-3 text-sm">${entry.Product||''}</td>\n                <td class="px-4 py-3 text-sm">${Utils.monthNumToName(entry.Month)}</td>\n                <td class="px-4 py-3 text-sm text-right">${u(entry['Qty (MT)'])}</td>\n                <td class="px-4 py-3 text-sm text-right">${u(entry['PMT (JOD)'])}</td>\n                <td class="px-4 py-3 text-sm text-right">${u(entry['GP %'],1)}%</td>\n                <td class="px-4 py-3 text-sm text-green-600 font-medium text-right">${u(entry['Sales (JOD)'],0)}</td>\n                <td class="px-4 py-3 text-sm text-blue-600 font-medium text-right">${u(entry['GP (JOD)'],0)}</td>\n                <td class="px-4 py-3 text-sm"><span class="px-2 py-1 text-xs rounded-full ${entry.Booked==='Yes'?'bg-green-100 text-green-800':'bg-red-100 text-red-800'}">${entry.Booked||'No'}</span></td>`;tbody.appendChild(row)});const filteredSales=filteredEntries.reduce((sum,entry)=>sum+(parseFloat(entry['Sales (JOD)'])||0),0),filteredGP=filteredEntries.reduce((sum,entry)=>sum+(parseFloat(entry['GP (JOD)'])||0),0);document.getElementById('filteredCount').textContent=filteredEntries.length;document.getElementById('filteredSales').textContent=Utils.formatNumber(filteredSales,0)+' JOD';document.getElementById('filteredGP').textContent=Utils.formatNumber(filteredGP,0)+' JOD';const selectAllCheckbox=document.getElementById('selectAll');if(selectAllCheckbox)selectAllCheckbox.addEventListener('change',e=>{document.querySelectorAll('.entry-checkbox').forEach(cb=>cb.checked=e.target.checked)})};
-UI.updateMasterDataDisplay = () => {const clientsList=document.getElementById('clientsList'),clientCount=document.getElementById('clientCount');clientCount.textContent=AppState.masters.clients.length;clientsList.innerHTML=AppState.masters.clients.map(client=>`<div class="py-1">${client}</div>`).join('')||'<div class="italic">No clients loaded</div>';const productsList=document.getElementById('productsList'),productCount=document.getElementById('productCount');productCount.textContent=AppState.masters.products.length;productsList.innerHTML=AppState.masters.products.map(product=>`<div class="py-1">${product.Product} <span class="text-gray-500">(${product.Category})</span></div>`).join('')||'<div class="italic">No products loaded</div>'};
 
-
-// Event Handlers - UPDATED for file uploads
+// Event Handlers
 const EventHandlers = {
-    setupFormHandlers() { /* ... existing code ... */ },
-    setupManageHandlers() { /* ... existing code ... */ },
+    setupFormHandlers() {
+        document.getElementById('btnAddEntry').addEventListener('click', async () => {
+            let selectedClient = document.getElementById('client').value;
+            const newClient = document.getElementById('newClient').value.trim();
+            if (newClient && !AppState.masters.clients.includes(newClient)) {
+                AppState.masters.clients.push(newClient);
+                selectedClient = newClient;
+                document.getElementById('newClient').value = '';
+                UI.initializeForm();
+                document.getElementById('client').value = selectedClient;
+            }
+            
+            const baseData = {
+                business_unit: document.getElementById('businessUnit').value,
+                section: document.getElementById('section').value,
+                client: selectedClient,
+                product: document.getElementById('product').value,
+                gm_percent: parseFloat(document.getElementById('gmPercent').value),
+                sector: document.getElementById('sector').value
+            };
+            
+            const pmtQ1 = parseFloat(document.getElementById('pmtQ1').value);
+            const pmtQ2 = parseFloat(document.getElementById('pmtQ2').value);
+            const pmtQ3 = parseFloat(document.getElementById('pmtQ3').value);
+            const pmtQ4 = parseFloat(document.getElementById('pmtQ4').value);
+            const monthQuarterMap = {Jan:{q:'Q1',p:pmtQ1},Feb:{q:'Q1',p:pmtQ1},Mar:{q:'Q1',p:pmtQ1},Apr:{q:'Q2',p:pmtQ2},May:{q:'Q2',p:pmtQ2},Jun:{q:'Q2',p:pmtQ2},Jul:{q:'Q3',p:pmtQ3},Aug:{q:'Q3',p:pmtQ3},Sep:{q:'Q3',p:pmtQ3},Oct:{q:'Q4',p:pmtQ4},Nov:{q:'Q4',p:pmtQ4},Dec:{q:'Q4',p:pmtQ4}};
 
-    setupFileHandlers: () => {
+            let entriesToAdd = [];
+            for (const [monthName, info] of Object.entries(monthQuarterMap)) {
+                const qtyInput = document.getElementById(`qty${monthName}`);
+                if (qtyInput.value.trim() !== '') { // Only process months with entered quantities
+                    const qty = parseFloat(qtyInput.value);
+                    const isBooked = document.getElementById(`check${monthName}`).checked;
+                    entriesToAdd.push({ ...baseData, month_name: monthName, qty: qty, pmt: info.p, booked: isBooked ? "Yes" : "No" });
+                }
+            }
+
+            // --- Start Validation ---
+            if (entriesToAdd.length === 0) {
+                Utils.showNotification('No quantities entered to add.', 'info');
+                return;
+            }
+            const warnings = [];
+            if (isNaN(baseData.gm_percent) || baseData.gm_percent === 0) {
+                warnings.push("Annual GP % cannot be 0.");
+            }
+            
+            entriesToAdd.forEach(entry => {
+                const month = entry.month_name;
+                const quarter = monthQuarterMap[month].q;
+                
+                if (isNaN(entry.qty) || entry.qty === 0) {
+                        warnings.push(`Quantity for ${month} cannot be 0.`);
+                }
+                if (isNaN(entry.pmt) || entry.pmt === 0) {
+                        warnings.push(`PMT for ${quarter} (covering ${month}) cannot be 0.`);
+                }
+            });
+
+            if (warnings.length > 0) {
+                Utils.showNotification(warnings.join('<br>'), 'warning');
+                return; // Stop execution if there are validation errors
+            }
+            // --- End Validation ---
+
+            let entriesAdded = 0;
+            for (const entryData of entriesToAdd) {
+                try {
+                    await API.addEntry(entryData);
+                    entriesAdded++;
+                } catch (e) {
+                    // Error is already shown by API handler, so just break the loop
+                    break;
+                }
+            }
+            
+            if (entriesAdded > 0) {
+                Utils.showNotification(`Successfully added ${entriesAdded} monthly entries`, 'success');
+                UI.updateStats();
+                UI.initializeFilters();
+                this.resetForm();
+            }
+        });
+        
+        document.getElementById('btnResetForm').addEventListener('click', this.resetForm);
+    },
+    
+    setupManageHandlers() {
+        document.getElementById('btnRecalculate').addEventListener('click', async () => {
+            await API.recalculate();
+            UI.updateStats();
+            UI.renderDataTable();
+        });
+        
+        document.getElementById('btnDeleteSelected').addEventListener('click', async () => {
+            const selectedIds = Array.from(document.querySelectorAll('.entry-checkbox:checked')).map(cb => cb.dataset.id);
+            if (selectedIds.length === 0) {
+                Utils.showNotification('No entries selected for deletion', 'warning');
+                return;
+            }
+            if (confirm(`Delete ${selectedIds.length} selected entries?`)) {
+                await API.commitChanges([], selectedIds);
+                UI.updateStats();
+                UI.initializeFilters();
+                UI.renderDataTable();
+            }
+        });
+    },
+    
+    setupFileHandlers() {
         document.getElementById('btnUploadMasters').addEventListener('click', async () => {
             const fileInput = document.getElementById('mastersFile');
-            if (!fileInput.files[0]) { Utils.showNotification('Please select a masters file', 'warning'); return; }
+            const file = fileInput.files[0];
+            if (!file) { Utils.showNotification('Please select a masters file', 'warning'); return; }
             
             const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
+            formData.append('file', file);
             
             try {
                 Utils.showLoading(true);
-                const accessToken = await auth0Client.getTokenSilently();
-                const response = await fetch('/api/load_masters', {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
+                const response = await fetch('/api/load_masters', { method: 'POST', body: formData, headers: { 'X-Session-ID': sessionId } });
                 const data = await response.json();
                 
                 if (data.error) Utils.showNotification(data.error, 'error');
                 else {
                     AppState.masters.clients = data.masters.clients || [];
                     AppState.masters.products = data.masters.products || [];
+                    
+                    // Rebuild the lookup maps with the new data
                     rebuildMasterLookups();
+                    
                     UI.initializeForm();
                     UI.updateMasterDataDisplay();
                     Utils.showNotification('Master data uploaded to your session', 'success');
@@ -235,12 +633,7 @@ const EventHandlers = {
             
             try {
                 Utils.showLoading(true);
-                const accessToken = await auth0Client.getTokenSilently();
-                const response = await fetch('/api/load_budget', {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
+                const response = await fetch('/api/load_budget', { method: 'POST', body: formData, headers: { 'X-Session-ID': sessionId } });
                 const data = await response.json();
                 
                 if (data.error) Utils.showNotification(data.error, 'error');
@@ -260,11 +653,7 @@ const EventHandlers = {
             if (confirm('Are you sure you want to clear all data in your session?')) {
                 try {
                     Utils.showLoading(true);
-                    const accessToken = await auth0Client.getTokenSilently();
-                    const response = await fetch('/api/clear_data', {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${accessToken}` }
-                    });
+                    const response = await fetch('/api/clear_data', { method: 'POST', headers: { 'X-Session-ID': sessionId } });
                     const data = await response.json();
                     if (data.status === 'success') {
                         AppState.entries = [];
@@ -283,76 +672,49 @@ const EventHandlers = {
         });
     },
     
-    resetForm: () => { /* ... existing code ... */ }
+    resetForm() {
+        ['pmtQ1', 'pmtQ2', 'pmtQ3', 'pmtQ4', 'gmPercent'].forEach(id => document.getElementById(id).value = '');
+        ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].forEach(m => {
+            document.getElementById(`qty${m}`).value = '';
+            document.getElementById(`check${m}`).checked = false;
+        });
+        document.getElementById('newClient').value = '';
+        UI.updateProductDefaults();
+    }
 };
-// Copying your other EventHandlers functions for completeness:
-EventHandlers.setupFormHandlers=()=>{document.getElementById('btnAddEntry').addEventListener('click',async()=>{let selectedClient=document.getElementById('client').value;const newClient=document.getElementById('newClient').value.trim();if(newClient&&!AppState.masters.clients.includes(newClient)){AppState.masters.clients.push(newClient);selectedClient=newClient;document.getElementById('newClient').value='';UI.initializeForm();document.getElementById('client').value=selectedClient};const baseData={business_unit:document.getElementById('businessUnit').value,section:document.getElementById('section').value,client:selectedClient,product:document.getElementById('product').value,gm_percent:parseFloat(document.getElementById('gmPercent').value),sector:document.getElementById('sector').value};const pmtQ1=parseFloat(document.getElementById('pmtQ1').value),pmtQ2=parseFloat(document.getElementById('pmtQ2').value),pmtQ3=parseFloat(document.getElementById('pmtQ3').value),pmtQ4=parseFloat(document.getElementById('pmtQ4').value),monthQuarterMap={Jan:{q:'Q1',p:pmtQ1},Feb:{q:'Q1',p:pmtQ1},Mar:{q:'Q1',p:pmtQ1},Apr:{q:'Q2',p:pmtQ2},May:{q:'Q2',p:pmtQ2},Jun:{q:'Q2',p:pmtQ2},Jul:{q:'Q3',p:pmtQ3},Aug:{q:'Q3',p:pmtQ3},Sep:{q:'Q3',p:pmtQ3},Oct:{q:'Q4',p:pmtQ4},Nov:{q:'Q4',p:pmtQ4},Dec:{q:'Q4',p:pmtQ4}};let entriesToAdd=[];for(const[monthName,info]of Object.entries(monthQuarterMap)){const qtyInput=document.getElementById(`qty${monthName}`);if(qtyInput.value.trim()!==''){const qty=parseFloat(qtyInput.value),isBooked=document.getElementById(`check${monthName}`).checked;entriesToAdd.push({...baseData,month_name:monthName,qty:qty,pmt:info.p,booked:isBooked?"Yes":"No"})}};if(entriesToAdd.length===0){Utils.showNotification('No quantities entered to add.','info');return};const warnings=[];if(isNaN(baseData.gm_percent)||baseData.gm_percent===0)warnings.push("Annual GP % cannot be 0.");entriesToAdd.forEach(entry=>{const month=entry.month_name,quarter=monthQuarterMap[month].q;if(isNaN(entry.qty)||entry.qty===0)warnings.push(`Quantity for ${month} cannot be 0.`);if(isNaN(entry.pmt)||entry.pmt===0)warnings.push(`PMT for ${quarter} (covering ${month}) cannot be 0.`)});if(warnings.length>0){Utils.showNotification(warnings.join('<br>'),'warning');return};let entriesAdded=0;for(const entryData of entriesToAdd){try{await API.addEntry(entryData);entriesAdded++}catch(e){break}};if(entriesAdded>0){Utils.showNotification(`Successfully added ${entriesAdded} monthly entries`,'success');UI.updateStats();UI.initializeFilters();this.resetForm()}});document.getElementById('btnResetForm').addEventListener('click',this.resetForm)};
-EventHandlers.setupManageHandlers=()=>{document.getElementById('btnRecalculate').addEventListener('click',async()=>{await API.recalculate();UI.updateStats();UI.renderDataTable()});document.getElementById('btnDeleteSelected').addEventListener('click',async()=>{const selectedIds=Array.from(document.querySelectorAll('.entry-checkbox:checked')).map(cb=>cb.dataset.id);if(selectedIds.length===0){Utils.showNotification('No entries selected for deletion','warning');return};if(confirm(`Delete ${selectedIds.length} selected entries?`)){await API.commitChanges([],selectedIds);UI.updateStats();UI.initializeFilters();UI.renderDataTable()}})};
-EventHandlers.resetForm=()=>{['pmtQ1','pmtQ2','pmtQ3','pmtQ4','gmPercent'].forEach(id=>document.getElementById(id).value='');['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].forEach(m=>{document.getElementById(`qty${m}`).value='';document.getElementById(`check${m}`).checked=false});document.getElementById('newClient').value='';UI.updateProductDefaults()};
 
-
-// --- REPLACED Application Initialization ---
+// Application Initialization
 async function initializeApp() {
     try {
-        // The `isAuthenticated` and `auth0Config` variables are now globals from index.html
-        if (isAuthenticated) {
-            // The user is logged in, so configure the Auth0 JS client
-            auth0Client = await auth0.createAuth0Client({
-                domain: auth0Config.domain,
-                clientId: auth0Config.clientId
-            });
-            
-            // This code now only runs for logged-in users
-            document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-            });
-            window.addEventListener('beforeunload', (event) => {
-                if (AppState.entries.length > 0) { event.preventDefault(); event.returnValue = ''; return ''; }
-            });
-            
-            await API.loadState();
-            UI.initializeTabs();
-            UI.initializeForm();
-            UI.updateStats();
-            UI.initializeFilters();
-            UI.updateMasterDataDisplay();
-            EventHandlers.setupFormHandlers();
-            EventHandlers.setupManageHandlers();
-            EventHandlers.setupFileHandlers();
-            Utils.showNotification('Application ready', 'success');
-        } else {
-            // User is not authenticated, no need to initialize the app.
-            // Just set the date for the login page.
-            const dateEl = document.getElementById('currentDate');
-            if(dateEl) {
-                dateEl.textContent = new Date().toLocaleDateString('en-US', {
-                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                });
-            }
-            console.log("User is not logged in. Displaying login page.");
-        }
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+        window.addEventListener('beforeunload', (event) => {
+            if (AppState.entries.length > 0) { event.preventDefault(); event.returnValue = ''; return ''; }
+        });
+        await API.loadState();
+        UI.initializeTabs();
+        UI.initializeForm();
+        UI.updateStats();
+        UI.initializeFilters();
+        UI.updateMasterDataDisplay();
+        EventHandlers.setupFormHandlers();
+        EventHandlers.setupManageHandlers();
+        EventHandlers.setupFileHandlers();
+        Utils.showNotification('Application ready', 'success');
     } catch (error) {
         console.error('Failed to initialize application:', error);
-        Utils.showNotification('Failed to initialize application.', 'error');
     }
 }
 
-// --- UPDATED DOMContentLoaded handler ---
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
-    
-    // The File System Access API code for Save/Save As needs to be inside the DOMContentLoaded
-    // listener, but it will only work if the user is authenticated and auth0Client is set.
     let currentFileHandle = null;
 
     const writeFile = async (fileHandle) => {
-        if (!auth0Client) return; // Guard against running when not logged in
         try {
             Utils.showLoading(true);
-            const accessToken = await auth0Client.getTokenSilently();
-            const response = await fetch('/api/download_current', { 
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
+            const response = await fetch('/api/download_current', { headers: { 'X-Session-ID': sessionId }});
             if (!response.ok) throw new Error('Failed to fetch file data from server.');
             const blob = await response.blob();
             const writable = await fileHandle.createWritable();
@@ -381,7 +743,9 @@ document.addEventListener('DOMContentLoaded', () => {
             currentFileHandle = handle;
             Utils.showNotification(`File saved as "${handle.name}"`, 'success');
         } catch (err) {
-            if (err.name !== 'AbortError') Utils.showNotification('Could not save the file.', 'error');
+            if (err.name !== 'AbortError') {
+                Utils.showNotification('Could not save the file.', 'error');
+            }
         }
     };
     
@@ -396,41 +760,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const fallbackDownload = async () => {
-        if (!auth0Client) return;
-        try {
-            Utils.showLoading(true);
-            const accessToken = await auth0Client.getTokenSilently();
-            const response = await fetch('/api/download_current', { 
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `Budget_Export_${new Date().toISOString().slice(0,10)}.xlsx`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-        } catch (err) {
-            Utils.showNotification('Download failed.', 'error');
-        } finally {
-            Utils.showLoading(false);
-        }
+    const fallbackDownload = () => {
+        const link = document.createElement('a');
+        link.href = '/api/download_current'; // This endpoint needs to be session aware on the backend now.
+        link.download = `Budget_Export.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
     
     window.ClientFileHandler = { resetFileHandle: () => { currentFileHandle = null; console.log("File handle has been reset."); } };
 
     const hasFSApi = 'showSaveFilePicker' in window;
-    
-    // Add event listeners only if the buttons exist (i.e., user is logged in)
-    const btnSave = document.getElementById('btnSave');
-    if (btnSave) {
-        btnSave.addEventListener('click', async (e) => { e.preventDefault(); if (hasFSApi) { await handleSave(); } else { await fallbackDownload(); } });
-    }
-    const btnSaveAs = document.getElementById('btnSaveAs');
-    if (btnSaveAs) {
-        btnSaveAs.addEventListener('click', async (e) => { e.preventDefault(); if (hasFSApi) { await handleSaveAs(); } else { await fallbackDownload(); } });
-    }
+    document.getElementById('btnSave').addEventListener('click', async (e) => { e.preventDefault(); if (hasFSApi) { await handleSave(); } else { fallbackDownload(); } });
+    document.getElementById('btnSaveAs').addEventListener('click', async (e) => { e.preventDefault(); if (hasFSApi) { await handleSaveAs(); } else { fallbackDownload(); } });
 });

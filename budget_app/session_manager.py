@@ -1,30 +1,25 @@
-# budget_app/session_manager.py
-
 import uuid
 import pandas as pd
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-from flask import session # We will use the secure Flask session now
+from flask import request
 
 # Import constants and schemas from our new data_utils module
 from .data_utils import IDCOL, INTERNAL_DF_COLS
 
 # This dictionary holds all active user sessions in memory.
-# The key will now be the USER ID from Auth0.
 SESSIONS: Dict[str, Dict[str, Any]] = {}
 
-def get_or_create_session_data(user_id: str) -> Dict[str, Any]:
-    """
-    Gets or creates a data bucket for an authenticated user.
-    The key is now the user's permanent ID from Auth0.
-    """
-    if user_id in SESSIONS:
-        SESSIONS[user_id]["last_accessed"] = datetime.utcnow()
-        return SESSIONS[user_id]
+def get_or_create_session(session_id: Optional[str] = None) -> Dict[str, Any]:
+    """Gets or creates a new session for a user."""
+    if session_id and session_id in SESSIONS:
+        return SESSIONS[session_id]
 
-    # Create a new data bucket for this user
-    SESSIONS[user_id] = {
-        "user_id": user_id,
+    new_session_id = str(uuid.uuid4())
+    
+    # Each user gets their own copy of data and masters
+    SESSIONS[new_session_id] = {
+        "id": new_session_id,
         "entries_df": pd.DataFrame(columns=[IDCOL] + INTERNAL_DF_COLS),
         "masters": {
             "clients": [
@@ -37,23 +32,22 @@ def get_or_create_session_data(user_id: str) -> Dict[str, Any]:
                 "Category": [
                     "Category 1", "Category 2", "Category 3", 
                 ],
-                "Default_PMT": [pd.NA, pd.NA, pd.NA],
-                "Default_GM%": [pd.NA, pd.NA, pd.NA]
+                
             }),
         },
         "last_accessed": datetime.utcnow()
     }
-    return SESSIONS[user_id]
+    return SESSIONS[new_session_id]
 
-def get_session_data_for_request() -> Dict[str, Any]:
-    """
-    Helper to get the data bucket based on the logged-in user.
-    This replaces the old 'get_session_from_request'.
-    """
-    if "user" not in session or "userinfo" not in session["user"] or "sub" not in session["user"]["userinfo"]:
-        # This case should ideally not be hit if endpoints are protected,
-        # but it's a good safeguard.
-        raise PermissionError("User not authenticated")
+def get_session_from_request() -> Dict[str, Any]:
+    """Helper to get the session ID from the request header."""
+    session_id = request.headers.get("X-Session-ID")
+    if not session_id:
+        return get_or_create_session()
     
-    user_id = session["user"]["userinfo"]["sub"]
-    return get_or_create_session_data(user_id)
+    session = SESSIONS.get(session_id)
+    if not session:
+        return get_or_create_session()
+    
+    session["last_accessed"] = datetime.utcnow()
+    return session
