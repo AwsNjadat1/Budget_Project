@@ -11,3 +11,6 @@ __pycache__/
 # Editor directories and files
 .vscode/
 .idea/
+
+# Secret files
+.env
