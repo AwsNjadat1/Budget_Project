@@ -23,28 +23,16 @@ const AppState = {
 let sessionId = null;
 
 function rebuildMasterLookups() {
-    // Reset the maps to ensure they are clean from old data
+    // Reset the map to ensure it is clean from old data
     AppState.masters.productMap = {};
-    AppState.masters.pmtMap = {};
-    AppState.masters.gmMap = {};
 
     (AppState.masters.products || []).forEach(product => {
         const p = product?.Product;
         if (!p) return; // Skip if product name is missing
 
         AppState.masters.productMap[p] = product?.Category ?? '';
-
-        const pmtVal = parseFloat(product?.Default_PMT);
-        const gmVal = parseFloat(product?.['Default_GM%']);
-
-        if (!isNaN(pmtVal)) {
-            AppState.masters.pmtMap[p] = pmtVal;
-        }
-        if (!isNaN(gmVal)) {
-            AppState.masters.gmMap[p] = gmVal;
-        }
     });
-    console.log("Master lookup maps have been rebuilt.");
+    console.log("Master product->category lookup map has been rebuilt.");
 }
 
 // Utility Functions
@@ -292,7 +280,7 @@ const UI = {
         this.updatePreview();
     },
     
-    updateProductDefaults() {
+        updateProductDefaults() {
         const productField = document.getElementById('product');
         const categoryField = document.getElementById('categoryDisplay');
         
@@ -300,25 +288,11 @@ const UI = {
         
         const product = productField.value;
         const category = AppState.masters.productMap[product] || 'Unknown';
-        // Get the defaults. They will be a number or undefined.
-        const defaultPMT = AppState.masters.pmtMap[product];
-        const defaultGM = AppState.masters.gmMap[product];
         
         categoryField.value = category;
         
-        ['pmtQ1', 'pmtQ2', 'pmtQ3', 'pmtQ4'].forEach(id => {
-            const field = document.getElementById(id);
-            if (field && !field.value) {
-                    // Use the nullish coalescing operator '??'
-                // It sets the value to '' ONLY if defaultPMT is null or undefined
-                field.value = defaultPMT ?? '';
-            }
-        });
-        
-        const gmField = document.getElementById('gmPercent');
-        if (gmField && !gmField.value) {
-            gmField.value = defaultGM ?? '';
-        }
+        // We no longer fill PMT or GM% fields.
+        // The user will always enter them manually.
         
         this.updatePreview();
     },
@@ -441,13 +415,14 @@ const UI = {
                 <td class="px-4 py-3 text-sm">${entry['Business Unit'] || ''}</td>
                 <td class="px-4 py-3 text-sm">${entry.Section || ''}</td>
                 <td class="px-4 py-3 text-sm">${entry.Client || ''}</td>
+                <td class="px-4 py-3 text-sm">${entry.Category || ''}</td>
                 <td class="px-4 py-3 text-sm">${entry.Product || ''}</td>
                 <td class="px-4 py-3 text-sm">${Utils.monthNumToName(entry.Month)}</td>
-                <td class="px-4 py-3 text-sm text-right">${u(entry['Qty (MT)'])}</td>
-                <td class="px-4 py-3 text-sm text-right">${u(entry['PMT (JOD)'])}</td>
-                <td class="px-4 py-3 text-sm text-right">${u(entry['GP %'], 1)}%</td>
-                <td class="px-4 py-3 text-sm text-green-600 font-medium text-right">${u(entry['Sales (JOD)'], 0)}</td>
-                <td class="px-4 py-3 text-sm text-blue-600 font-medium text-right">${u(entry['GP (JOD)'], 0)}</td>
+                <td class="px-4 py-3 text-sm text-left">${u(entry['Qty (MT)'])}</td>
+                <td class="px-4 py-3 text-sm text-left">${u(entry['PMT (JOD)'])}</td>
+                <td class="px-4 py-3 text-sm text-left">${u(entry['GP %'], 1)}%</td>
+                <td class="px-4 py-3 text-sm text-green-600 font-medium text-left">${u(entry['Sales (JOD)'], 0)}</td>
+                <td class="px-4 py-3 text-sm text-blue-600 font-medium text-left">${u(entry['GP (JOD)'], 0)}</td>
                 <td class="px-4 py-3 text-sm"><span class="px-2 py-1 text-xs rounded-full ${entry.Booked === 'Yes' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${entry.Booked || 'No'}</span></td>
             `;
             tbody.appendChild(row);
@@ -494,12 +469,53 @@ const EventHandlers = {
                 UI.initializeForm();
                 document.getElementById('client').value = selectedClient;
             }
+
+            const newProductName = document.getElementById('newProductName').value.trim();
+            if (newProductName) {
+                // Check if a product with this name already exists
+                const productExists = AppState.masters.products.some(p => p.Product === newProductName);
+                
+                if (!productExists) {
+                    const newCategory = document.getElementById('newProductCategory').value.trim() || 'Uncategorized';
+
+                    // Create the new product OBJECT
+                    const newProductObject = {
+                        "Product": newProductName,
+                        "Category": newCategory,
+                    };
+                    
+                    // Push the new OBJECT into the masters array
+                    AppState.masters.products.push(newProductObject);
+                    
+                    // CRITICAL: Rebuild the product->category lookup map
+                    rebuildMasterLookups();
+                    
+                    // Refresh the form dropdowns to include the new product
+                    UI.initializeForm(); 
+                    
+                    // Automatically select the newly added product in the dropdown
+                    document.getElementById('product').value = newProductName;
+                    
+                    // Clear the 'new product' input fields
+                    document.getElementById('newProductName').value = '';
+                    document.getElementById('newProductCategory').value = '';
+
+                    // Manually trigger the update for the category display
+                    UI.updateProductDefaults();
+
+                    Utils.showNotification(`New product "${newProductName}" added to this session.`, 'success');
+                }
+            }
             
+            const selectedProduct = document.getElementById('product').value;
+            const productCategory = AppState.masters.productMap[selectedProduct] || 'Uncategorized';
+
             const baseData = {
                 business_unit: document.getElementById('businessUnit').value,
                 section: document.getElementById('section').value,
                 client: selectedClient,
-                product: document.getElementById('product').value,
+                product: selectedProduct,
+                category: productCategory, // <-- ADD THIS LINE
                 gm_percent: parseFloat(document.getElementById('gmPercent').value),
                 sector: document.getElementById('sector').value
             };

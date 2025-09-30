@@ -87,7 +87,7 @@ def api_add_entry():
             "Business Unit": str(data.get("business_unit", "")),
             "Section": str(data.get("section", "")),
             "Client": str(data.get("client", "")),
-            "Category": "",
+            "Category": str(data.get("category", "")),
             "Product": str(data.get("product", "")),
             "Month": month_name_to_num(data.get("month_name", "Jan")),
             "PMT (JOD)": float(data.get("pmt", 0)),
@@ -101,7 +101,11 @@ def api_add_entry():
         
         new_row_df = pd.DataFrame([entry])
         new_row_df = coerce_narrow_schema_types(new_row_df)
-        new_row_df = recalc_narrow_schema(new_row_df, masters["products"])
+        
+        # We no longer need the master list for this calculation, as the category is already set
+        # and the sales/gp are calculated from direct inputs.
+        new_row_df["Sales (JOD)"] = (new_row_df["Qty (MT)"] * new_row_df["PMT (JOD)"]).round(2)
+        new_row_df["GP (JOD)"] = (new_row_df["Sales (JOD)"] * new_row_df["GP %"] / 100.0).round(2)
 
         # Check if the main DataFrame is empty
         if entries_df.empty:
@@ -210,7 +214,7 @@ def api_load_masters():
         
         if "Products" in excel_file.sheet_names:
             products_df = pd.read_excel(excel_file, sheet_name="Products", engine="openpyxl")
-            required_cols = ["Product", "Category", "Default_PMT", "Default_GM%"]
+            required_cols = ["Product", "Category"]
             for col in required_cols:
                 if col not in products_df.columns:
                     products_df[col] = "" if col in ["Product", "Category"] else pd.NA
