@@ -1,0 +1,1 @@
+web: gunicorn -c gunicorn.conf.py "budget_app:create_app()"

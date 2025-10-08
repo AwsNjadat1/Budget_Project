@@ -1,10 +1,15 @@
+# budget_app/routes.py
+
 import io
 import json
 from datetime import datetime
 import uuid
 
 import pandas as pd
-from flask import Blueprint, request, jsonify, send_file, render_template
+from flask import (
+    Blueprint, request, jsonify, send_file, render_template,
+    session, redirect, url_for
+)
 
 # Import our separated modules
 from .session_manager import get_session_from_request
@@ -25,12 +30,45 @@ main = Blueprint('main', __name__)
 
 @main.route("/")
 def index():
-    """Serve the modern web interface from the template file."""
-    return render_template("index.html")
+    """
+    Serve the modern web interface from the template file.
+    This route is now protected and requires a user to be logged in.
+    """
+    # --- PROTECT THIS ROUTE ---
+    # If the 'user' key is not in the session, they are not logged in.
+    # Redirect them to the login page.
+    if 'user' not in session:
+        return redirect(url_for('auth.login'))
+
+    # If the user is logged in, pass their information to the template.
+    return render_template("index.html", user=session.get('user'))
+
+@main.route("/logged_out")
+def logged_out():
+    """A simple page to show after the user has logged out."""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Logged Out</title>
+        <style>
+            body { font-family: sans-serif; text-align: center; padding-top: 50px; }
+            a { color: #007bff; }
+        </style>
+    </head>
+    <body>
+        <h2>You have been successfully logged out.</h2>
+        <p><a href="/">Log in again</a></p>
+    </body>
+    </html>
+    """
 
 # =========================
 # Enhanced API Routes (with Session Management)
 # =========================
+# NOTE: The API routes below do not need login protection themselves,
+# because the frontend page that calls them (index.html) is already protected.
+# If a user can't load the page, they can't call the APIs.
 
 @main.route("/api/state")
 def api_get_state():
@@ -51,7 +89,7 @@ def api_add_entry():
     session = get_session_from_request()
     entries_df = session["entries_df"]
     masters = session["masters"]
-    
+
     try:
         data = request.get_json(force=True)
 
@@ -68,7 +106,7 @@ def api_add_entry():
                 errors.append("PMT (JOD) cannot be 0.")
         except (ValueError, TypeError, AttributeError):
             errors.append("Invalid value for PMT (JOD).")
-            
+
         try:
             if float(data.get("gm_percent")) == 0:
                 errors.append("GP % cannot be 0.")
@@ -98,10 +136,10 @@ def api_add_entry():
             "Sector": str(data.get("sector", "")),
             "Booked": str(data.get("booked", "No")),
         }
-        
+
         new_row_df = pd.DataFrame([entry])
         new_row_df = coerce_narrow_schema_types(new_row_df)
-        
+
         # We no longer need the master list for this calculation, as the category is already set
         # and the sales/gp are calculated from direct inputs.
         new_row_df["Sales (JOD)"] = (new_row_df["Qty (MT)"] * new_row_df["PMT (JOD)"]).round(2)
@@ -114,13 +152,13 @@ def api_add_entry():
         else:
             # If it's not empty, concatenate as before
             session["entries_df"] = pd.concat([entries_df, new_row_df], ignore_index=True)
-        
+
         return jsonify({
             "status": "success",
             "entries": to_json_records(session["entries_df"]),
             "message": "Entry added successfully"
         })
-        
+
     except Exception as e:
         return jsonify({"status": "error", "message": f"Failed to add entry: {str(e)}"}), 500
 
@@ -135,10 +173,10 @@ def api_commit_changes():
         payload = request.get_json(force=True)
         edited_rows = payload.get("editedRows", [])
         delete_ids = set(payload.get("deleteIds", []))
-        
+
         if delete_ids:
             entries_df = entries_df[~entries_df[IDCOL].isin(delete_ids)]
-        
+
         if edited_rows:
             # Note: In a full implementation, validation would be needed here as well.
             # As the current UI does not support editing rows, this is omitted for now.
@@ -155,9 +193,9 @@ def api_commit_changes():
                 entries_df = base.reset_index()
             else:
                 entries_df = edited_df
-        
+
         session["entries_df"] = entries_df
-        
+
         return jsonify({
             "status": "success",
             "entries": to_json_records(session["entries_df"]),
@@ -171,7 +209,7 @@ def api_recalculate():
     """Recalculate all entries in the user's session."""
     session = get_session_from_request()
     masters = session["masters"]
-    
+
     try:
         session["entries_df"] = recalc_narrow_schema(session["entries_df"], masters["products"])
         return jsonify({
@@ -204,14 +242,14 @@ def api_load_masters():
         file = request.files.get("file")
         if not file:
             return jsonify({"error": "No file provided"}), 400
-        
+
         excel_file = pd.ExcelFile(file)
-        
+
         if "Clients" in excel_file.sheet_names:
             clients_df = pd.read_excel(excel_file, sheet_name="Clients", engine="openpyxl")
             if "Client" in clients_df.columns:
                 session["masters"]["clients"] = sorted([str(c) for c in clients_df["Client"].dropna().unique()])
-        
+
         if "Products" in excel_file.sheet_names:
             products_df = pd.read_excel(excel_file, sheet_name="Products", engine="openpyxl")
             required_cols = ["Product", "Category"]
@@ -219,7 +257,7 @@ def api_load_masters():
                 if col not in products_df.columns:
                     products_df[col] = "" if col in ["Product", "Category"] else pd.NA
             session["masters"]["products"] = products_df[required_cols]
-        
+
         return jsonify({
             "status": "success",
             "masters": {
@@ -241,10 +279,10 @@ def api_load_budget():
         sheet = request.form.get("sheet", "Budget")
         if not file:
             return jsonify({"error": "No file provided"}), 400
-        
+
         df = pd.read_excel(file, sheet_name=sheet, engine="openpyxl")
         is_wide_schema = any(col in df.columns for col in ["Qty_Jan (MT)", "PMT_Q1 (JOD)"])
-        
+
         if is_wide_schema:
             df_processed = coerce_wide_schema_types(df.copy())
             df_processed = recalc_wide_schema(df_processed, masters["products"])
@@ -252,9 +290,9 @@ def api_load_budget():
         else:
             df_final_narrow = coerce_narrow_schema_types(df.copy())
             df_final_narrow = recalc_narrow_schema(df_final_narrow, masters["products"])
-        
+
         session["entries_df"] = ensure_row_id(df_final_narrow)
-        
+
         return jsonify({
             "status": "success",
             "entries": to_json_records(session["entries_df"]),
@@ -282,15 +320,6 @@ def api_download_current():
         )
     except Exception as e:
         return jsonify({"error": f"Failed to download: {str(e)}"}), 400
-
-# @app.route("/api/download_master_template")
-# def api_download_master_template():
-#     """Download master data template."""
-#     try:
-#         buffer = create_master_template()
-#         return send_file(buffer, as_attachment=True, download_name="Master_Data_Template.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-#     except Exception as e:
-#         return jsonify({"error": f"Failed to generate template: {str(e)}"}), 400
 
 @main.route("/api/save", methods=["POST"])
 def api_save():
