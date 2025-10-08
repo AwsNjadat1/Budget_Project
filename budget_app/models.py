@@ -10,8 +10,11 @@ class BudgetEntry(db.Model):
     _rid = db.Column(db.String(36), primary_key=True)
     
     # A column to store which user this entry belongs to
-    # This is the key to separating data for different users!
     user_id = db.Column(db.String(150), nullable=False, index=True)
+
+    # --- THIS IS THE NEW COLUMN THAT WAS MISSING ---
+    user_name = db.Column(db.String(255))
+    # --- END OF NEW COLUMN ---
 
     # All the other data columns
     business_unit = db.Column(db.String(100))
@@ -32,6 +35,8 @@ class BudgetEntry(db.Model):
         """Converts the database object to a dictionary for JSON serialization."""
         return {
             IDCOL: self._rid,
+            "User ID": self.user_id,
+            "User Name": self.user_name, # Also include the new field in the output
             "Business Unit": self.business_unit,
             "Section": self.section,
             "Client": self.client,

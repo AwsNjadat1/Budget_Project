@@ -112,6 +112,8 @@ def api_add_entry():
         
     try:
         data = request.get_json(force=True)
+        
+        user_name = session.get('user', {}).get('name')
 
         # --- Your existing validation logic can go here ---
         # For example, check if qty, pmt, etc., are valid.
@@ -127,6 +129,7 @@ def api_add_entry():
         new_entry = BudgetEntry(
             _rid=str(uuid.uuid4()),
             user_id=user_id,
+            user_name=user_name,
             business_unit=str(data.get("business_unit", "")),
             section=str(data.get("section", "")),
             client=str(data.get("client", "")),

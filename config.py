@@ -23,13 +23,17 @@ class Config:
     DB_PASSWORD = os.environ.get("DB_PASSWORD")
     DB_DRIVER = os.environ.get("DB_DRIVER")
 
-    # Construct the SQLAlchemy Database URI
-    # The password is URL-encoded to handle special characters
+    # --- THIS IS THE FINAL, CORRECTED CONNECTION LOGIC ---
+    # We URL-encode the password and the driver name to handle any special characters safely.
     encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
+    encoded_driver = urllib.parse.quote_plus(DB_DRIVER)
+    
+    # This is the standard and most reliable way to build the connection string.
     SQLALCHEMY_DATABASE_URI = (
         f"mssql+pyodbc://{DB_USER}:{encoded_password}@{DB_SERVER}:1433/"
-        f"{DB_NAME}?driver={DB_DRIVER}"
+        f"{DB_NAME}?driver={encoded_driver}"
     )
+    # --- END OF FINAL, CORRECTED SECTION ---
     
     # Optional: Disable a SQLAlchemy feature that we don't need
     SQLALCHEMY_TRACK_MODIFICATIONS = False
