@@ -2,17 +2,34 @@
 
 import os
 from dotenv import load_dotenv
+import urllib.parse
 
-# Load environment variables from .env file
 load_dotenv()
 
 class Config:
     """Base configuration."""
     SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(24)
     
-    # Add Azure AD configurations
+    # Azure AD configurations
     AZURE_CLIENT_ID = os.environ.get("AZURE_CLIENT_ID")
     AZURE_CLIENT_SECRET = os.environ.get("AZURE_CLIENT_SECRET")
     AZURE_TENANT_ID = os.environ.get("AZURE_TENANT_ID")
-    # This is the "authority" URL that Authlib will use to contact Microsoft
     AZURE_AUTHORITY = f"https://login.microsoftonline.com/{AZURE_TENANT_ID}"
+
+    # Database Configuration
+    DB_SERVER = os.environ.get("DB_SERVER")
+    DB_NAME = os.environ.get("DB_NAME")
+    DB_USER = os.environ.get("DB_USER")
+    DB_PASSWORD = os.environ.get("DB_PASSWORD")
+    DB_DRIVER = os.environ.get("DB_DRIVER")
+
+    # Construct the SQLAlchemy Database URI
+    # The password is URL-encoded to handle special characters
+    encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
+    SQLALCHEMY_DATABASE_URI = (
+        f"mssql+pyodbc://{DB_USER}:{encoded_password}@{DB_SERVER}:1433/"
+        f"{DB_NAME}?driver={DB_DRIVER}"
+    )
+    
+    # Optional: Disable a SQLAlchemy feature that we don't need
+    SQLALCHEMY_TRACK_MODIFICATIONS = False

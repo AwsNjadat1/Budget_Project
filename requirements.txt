@@ -5,3 +5,5 @@ gunicorn
 python-dotenv
 authlib
 requests
+Flask-SQLAlchemy
+pyodbc
