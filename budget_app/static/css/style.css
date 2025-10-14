@@ -85,4 +85,12 @@
     max-width: 400px;
     animation: slide-up 0.3s ease-out;
 }
- 
+
+.editable-cell {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.editable-cell:hover {
+    background-color: #eff6ff;
+}

@@ -9,35 +9,35 @@ IDCOL = "_rid"
 # --- Internal narrow schema for ENTRIES_DF ---
 INTERNAL_DF_COLS = [
     "Business Unit", "Section", "Client", "Category", "Product", "Month",
-    "Qty (MT)", "PMT (JOD)", "GP %", "Sales (JOD)", "GP (JOD)", "Sector", "Booked"
+    "Qty (MT)", "PMT (USD)", "GP %", "Sales (USD)", "GP (USD)", "Sector", "Booked"
 ]
 INTERNAL_NUMERIC_COLS = [
-    "Qty (MT)", "PMT (JOD)", "GP %", "Sales (JOD)", "GP (JOD)"
+    "Qty (MT)", "PMT (USD)", "GP %", "Sales (USD)", "GP (USD)"
 ]
 
 # --- Original wide schema for external Excel files ---
 WIDE_EXCEL_COLS = [
     "Business Unit", "Section", "Client", "Category", "Product",
-    "PMT_Q1 (JOD)", "PMT_Q2 (JOD)", "PMT_Q3 (JOD)", "PMT_Q4 (JOD)",
+    "PMT_Q1 (USD)", "PMT_Q2 (USD)", "PMT_Q3 (USD)", "PMT_Q4 (USD)",
     "GP %",
     "Qty_Jan (MT)", "Qty_Feb (MT)", "Qty_Mar (MT)", "Qty_Apr (MT)", "Qty_May (MT)", "Qty_Jun (MT)",
     "Qty_Jul (MT)", "Qty_Aug (MT)", "Qty_Sep (MT)", "Qty_Oct (MT)", "Qty_Nov (MT)", "Qty_Dec (MT)",
-    "Sales_Q1 (JOD)", "Sales_Q2 (JOD)", "Sales_Q3 (JOD)", "Sales_Q4 (JOD)", "Total_Sales (JOD)",
-    "GP_Q1 (JOD)", "GP_Q2 (JOD)", "GP_Q3 (JOD)", "GP_Q4 (JOD)", "Total_GP (JOD)",
+    "Sales_Q1 (USD)", "Sales_Q2 (USD)", "Sales_Q3 (USD)", "Sales_Q4 (USD)", "Total_Sales (USD)",
+    "GP_Q1 (USD)", "GP_Q2 (USD)", "GP_Q3 (USD)", "GP_Q4 (USD)", "Total_GP (USD)",
     "Sector", "Booked"
 ]
 WIDE_EXCEL_NUMERIC_COLS = [
-    "PMT_Q1 (JOD)", "PMT_Q2 (JOD)", "PMT_Q3 (JOD)", "PMT_Q4 (JOD)", "GP %",
+    "PMT_Q1 (USD)", "PMT_Q2 (USD)", "PMT_Q3 (USD)", "PMT_Q4 (USD)", "GP %",
     "Qty_Jan (MT)", "Qty_Feb (MT)", "Qty_Mar (MT)", "Qty_Apr (MT)", "Qty_May (MT)", "Qty_Jun (MT)",
     "Qty_Jul (MT)", "Qty_Aug (MT)", "Qty_Sep (MT)", "Qty_Oct (MT)", "Qty_Nov (MT)", "Qty_Dec (MT)",
-    "Sales_Q1 (JOD)", "Sales_Q2 (JOD)", "Sales_Q3 (JOD)", "Sales_Q4 (JOD)", "Total_Sales (JOD)",
-    "GP_Q1 (JOD)", "GP_Q2 (JOD)", "GP_Q3 (JOD)", "GP_4 (JOD)", "Total_GP (JOD)"
+    "Sales_Q1 (USD)", "Sales_Q2 (USD)", "Sales_Q3 (USD)", "Sales_Q4 (USD)", "Total_Sales (USD)",
+    "GP_Q1 (USD)", "GP_Q2 (USD)", "GP_Q3 (USD)", "GP_4 (USD)", "Total_GP (USD)"
 ]
 
 # --- Columns for saving/exporting Excel files ---
 SAVE_EXCEL_COLS = [
-    "Business Unit", "Section", "Client", "Category", "Product", "Month",
-    "Qty (MT)", "PMT (JOD)", "GP %", "Sales (JOD)", "GP (JOD)", "Sector", "Booked"
+    "Business Unit", "User Name", "Section", "Client", "Category", "Product", "Month",
+    "Qty (MT)", "PMT (USD)", "GP %", "Sales (USD)", "GP (USD)", "Sector", "Booked"
 ]
 
 
@@ -75,7 +75,7 @@ def clean_numeric_string(s: Any) -> Any:
     if isinstance(s, str):
         s = s.strip()
         s = s.replace(",", "") # Remove thousands separator
-        s = s.replace("JOD", "").replace("%", "").strip() # Remove currency/percentage
+        s = s.replace("USD", "").replace("%", "").strip() # Remove currency/percentage
         if s.startswith("(") and s.endswith(")"): # Handle negative numbers in parentheses
             try:
                 return -float(s[1:-1])
@@ -152,23 +152,23 @@ def recalc_wide_schema(df: pd.DataFrame, products_df: pd.DataFrame) -> pd.DataFr
     )
     
     # Calculate quarterly sales and GP
-    df["Sales_Q1 (JOD)"] = ((df["Qty_Jan (MT)"] + df["Qty_Feb (MT)"] + df["Qty_Mar (MT)"]) * df["PMT_Q1 (JOD)"]).round(2)
-    df["Sales_Q2 (JOD)"] = ((df["Qty_Apr (MT)"] + df["Qty_May (MT)"] + df["Qty_Jun (MT)"]) * df["PMT_Q2 (JOD)"]).round(2)
-    df["Sales_Q3 (JOD)"] = ((df["Qty_Jul (MT)"] + df["Qty_Aug (MT)"] + df["Qty_Sep (MT)"]) * df["PMT_Q3 (JOD)"]).round(2)
-    df["Sales_Q4 (JOD)"] = ((df["Qty_Oct (MT)"] + df["Qty_Nov (MT)"] + df["Qty_Dec (MT)"]) * df["PMT_Q4 (JOD)"]).round(2)
+    df["Sales_Q1 (USD)"] = ((df["Qty_Jan (MT)"] + df["Qty_Feb (MT)"] + df["Qty_Mar (MT)"]) * df["PMT_Q1 (USD)"]).round(2)
+    df["Sales_Q2 (USD)"] = ((df["Qty_Apr (MT)"] + df["Qty_May (MT)"] + df["Qty_Jun (MT)"]) * df["PMT_Q2 (USD)"]).round(2)
+    df["Sales_Q3 (USD)"] = ((df["Qty_Jul (MT)"] + df["Qty_Aug (MT)"] + df["Qty_Sep (MT)"]) * df["PMT_Q3 (USD)"]).round(2)
+    df["Sales_Q4 (USD)"] = ((df["Qty_Oct (MT)"] + df["Qty_Nov (MT)"] + df["Qty_Dec (MT)"]) * df["PMT_Q4 (USD)"]).round(2)
     
     # Total Sales
-    df["Total_Sales (JOD)"] = (df["Sales_Q1 (JOD)"] + df["Sales_Q2 (JOD)"] + df["Sales_Q3 (JOD)"] + df["Sales_Q4 (JOD)"]).round(2)
+    df["Total_Sales (USD)"] = (df["Sales_Q1 (USD)"] + df["Sales_Q2 (USD)"] + df["Sales_Q3 (USD)"] + df["Sales_Q4 (USD)"]).round(2)
     
     # Calculate GP for each quarter using the annual GP%
     gm_factor = df["GP %"] / 100.0
-    df["GP_Q1 (JOD)"] = (df["Sales_Q1 (JOD)"] * gm_factor).round(2)
-    df["GP_Q2 (JOD)"] = (df["Sales_Q2 (JOD)"] * gm_factor).round(2)
-    df["GP_Q3 (JOD)"] = (df["Sales_Q3 (JOD)"] * gm_factor).round(2)
-    df["GP_Q4 (JOD)"] = (df["Sales_Q4 (JOD)"] * gm_factor).round(2)
+    df["GP_Q1 (USD)"] = (df["Sales_Q1 (USD)"] * gm_factor).round(2)
+    df["GP_Q2 (USD)"] = (df["Sales_Q2 (USD)"] * gm_factor).round(2)
+    df["GP_Q3 (USD)"] = (df["Sales_Q3 (USD)"] * gm_factor).round(2)
+    df["GP_Q4 (USD)"] = (df["Sales_Q4 (USD)"] * gm_factor).round(2)
     
     # Total GP
-    df["Total_GP (JOD)"] = (df["GP_Q1 (JOD)"] + df["GP_Q2 (JOD)"] + df["GP_Q3 (JOD)"] + df["GP_Q4 (JOD)"]).round(2)
+    df["Total_GP (USD)"] = (df["GP_Q1 (USD)"] + df["GP_Q2 (USD)"] + df["GP_Q3 (USD)"] + df["GP_Q4 (USD)"]).round(2)
     
     return df
 
@@ -183,8 +183,8 @@ def recalc_narrow_schema(df: pd.DataFrame, products_df: pd.DataFrame) -> pd.Data
         axis=1
     )
     
-    df["Sales (JOD)"] = (df["Qty (MT)"] * df["PMT (JOD)"]).round(2)
-    df["GP (JOD)"] = (df["Sales (JOD)"] * df["GP %"] / 100.0).round(2)
+    df["Sales (USD)"] = (df["Qty (MT)"] * df["PMT (USD)"]).round(2)
+    df["GP (USD)"] = (df["Sales (USD)"] * df["GP %"] / 100.0).round(2)
     
     return df
 
@@ -230,16 +230,16 @@ def convert_wide_to_narrow(df_wide: pd.DataFrame) -> pd.DataFrame:
 
     def get_monthly_pmt(row):
         mo = int(row["Month"])
-        if mo in (1,2,3): return row.get("PMT_Q1 (JOD)", 0.0)
-        if mo in (4,5,6): return row.get("PMT_Q2 (JOD)", 0.0)
-        if mo in (7,8,9): return row.get("PMT_Q3 (JOD)", 0.0)
-        if mo in (10,11,12): return row.get("PMT_Q4 (JOD)", 0.0)
+        if mo in (1,2,3): return row.get("PMT_Q1 (USD)", 0.0)
+        if mo in (4,5,6): return row.get("PMT_Q2 (USD)", 0.0)
+        if mo in (7,8,9): return row.get("PMT_Q3 (USD)", 0.0)
+        if mo in (10,11,12): return row.get("PMT_Q4 (USD)", 0.0)
         return 0.0
     
-    df_melted["PMT (JOD)"] = df_melted.apply(get_monthly_pmt, axis=1)
+    df_melted["PMT (USD)"] = df_melted.apply(get_monthly_pmt, axis=1)
     df_melted["GP %"] = pd.to_numeric(df_melted.get("GP %", 0.0), errors="coerce").fillna(0.0)
-    df_melted["Sales (JOD)"] = (df_melted["Qty (MT)"] * df_melted["PMT (JOD)"]).round(2)
-    df_melted["GP (JOD)"] = (df_melted["Sales (JOD)"] * df_melted["GP %"] / 100.0).round(2)
+    df_melted["Sales (USD)"] = (df_melted["Qty (MT)"] * df_melted["PMT (USD)"]).round(2)
+    df_melted["GP (USD)"] = (df_melted["Sales (USD)"] * df_melted["GP %"] / 100.0).round(2)
 
     final_df = df_melted[[col for col in [IDCOL] + INTERNAL_DF_COLS if col in df_melted.columns]]
     
